@@ -63,4 +63,16 @@ class Loss(nn.Module):
                    'dir_cls_loss': dir_cls_loss,
                    'total_loss': total_loss}
         return loss_dict
-    
+
+    def forward1(self, bbox_loc_pred, det_prob_pred, batched_bbox_loc, batched_obj_presence):
+        # bbox_loc_pred: predicted location (e.g., x, y, z)
+        # det_prob_pred: predicted detection probability
+        # batched_bbox_loc: ground truth location
+        # batched_obj_presence: ground truth object presence (1 or 0)
+
+        loc_loss = self.smooth_l1_loss(bbox_loc_pred, batched_bbox_loc).mean()
+        det_loss = F.binary_cross_entropy(det_prob_pred, batched_obj_presence)
+
+        total_loss = self.loc_w * loc_loss + self.det_w * det_loss
+
+        return {'loc_loss': loc_loss, 'det_loss': det_loss, 'total_loss': total_loss}
