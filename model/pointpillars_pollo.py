@@ -7,6 +7,7 @@ from model.anchors import Anchors, anchor_target, anchors2bboxes
 from ops import Voxelization, nms_cuda
 from utils import limit_period
 
+torch.set_default_dtype(torch.float32)
 
 class PillarLayer(nn.Module):
     def __init__(self, voxel_size, point_cloud_range, max_num_points, max_voxels):
@@ -409,11 +410,10 @@ class PointPillarsPollo(nn.Module):
                                                assigners=self.assigners,
                                                nclasses=self.nclasses)
 
-            return bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, anchor_target_dict
+            return bbox_cls_pred, bbox_pred, anchor_target_dict
         elif mode == 'val':
             results = self.get_predicted_bboxes(bbox_cls_pred=bbox_cls_pred,
                                                 bbox_pred=bbox_pred,
-                                                bbox_dir_cls_pred=bbox_dir_cls_pred,
                                                 batched_anchors=batched_anchors)
             return results
 
