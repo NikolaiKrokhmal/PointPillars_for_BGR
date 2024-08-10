@@ -130,17 +130,14 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
     n_assigners = len(assigners)
     batched_labels, batched_label_weights = [], []
     batched_bbox_reg, batched_bbox_reg_weights = [], []
-    batched_dir_labels, batched_dir_labels_weights = [], []
     for i in range(batch_size):
         anchors = batched_anchors[i]
         gt_bboxes, gt_labels = batched_gt_bboxes[i], batched_gt_labels[i]
         # what we want to get next ?
         # 1. identify positive anchors and negative anchors  -> cls
         # 2. identify the regresstion values  -> reg
-        # 3. indentify the direction  -> dir_cls
         multi_labels, multi_label_weights = [], []
         multi_bbox_reg, multi_bbox_reg_weights = [], []
-        multi_dir_labels, multi_dir_labels_weights = [], []
         d1, d2, d3, d4, d5 = anchors.size()
         for j in range(n_assigners):  # multi anchors
             assigner = assigners[j]
@@ -185,43 +182,26 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
             corr_gt_bboxes = gt_bboxes[assigned_gt_inds[pos_flag] - 1]
             assigned_gt_reg[pos_flag] = bboxes2deltas(corr_gt_bboxes, positive_anchors)
 
-            # 3. anchor direction
-            assigned_gt_dir_weights = torch.zeros_like(cur_anchors[:, 0])
-            assigned_gt_dir_weights[pos_flag] = 1
-
-            assigned_gt_dir = torch.zeros_like(cur_anchors[:, 0], dtype=torch.long)
-            dir_cls_targets = limit_period(corr_gt_bboxes[:, 6].cpu(), 0, 2 * np.pi).to(corr_gt_bboxes)
-            dir_cls_targets = torch.floor(dir_cls_targets / np.pi).long()
-            assigned_gt_dir[pos_flag] = torch.clamp(dir_cls_targets, min=0, max=1)
-
             multi_labels.append(assigned_gt_labels.reshape(d1, d2, 1, d4))
             multi_label_weights.append(assigned_gt_labels_weights.reshape(d1, d2, 1, d4))
             multi_bbox_reg.append(assigned_gt_reg.reshape(d1, d2, 1, d4, -1))
             multi_bbox_reg_weights.append(assigned_gt_reg_weights.reshape(d1, d2, 1, d4))
-            multi_dir_labels.append(assigned_gt_dir.reshape(d1, d2, 1, d4))
-            multi_dir_labels_weights.append(assigned_gt_dir_weights.reshape(d1, d2, 1, d4))
 
         multi_labels = torch.cat(multi_labels, dim=-2).reshape(-1)
         multi_label_weights = torch.cat(multi_label_weights, dim=-2).reshape(-1)
         multi_bbox_reg = torch.cat(multi_bbox_reg, dim=-3).reshape(-1, d5)
         multi_bbox_reg_weights = torch.cat(multi_bbox_reg_weights, dim=-2).reshape(-1)
-        multi_dir_labels = torch.cat(multi_dir_labels, dim=-2).reshape(-1)
-        multi_dir_labels_weights = torch.cat(multi_dir_labels_weights, dim=-2).reshape(-1)
 
         batched_labels.append(multi_labels)
         batched_label_weights.append(multi_label_weights)
         batched_bbox_reg.append(multi_bbox_reg)
         batched_bbox_reg_weights.append(multi_bbox_reg_weights)
-        batched_dir_labels.append(multi_dir_labels)
-        batched_dir_labels_weights.append(multi_dir_labels_weights)
 
     rt_dict = dict(
         batched_labels=torch.stack(batched_labels, 0),  # (bs, y_l * x_l * 3 * 2)
         batched_label_weights=torch.stack(batched_label_weights, 0),  # (bs, y_l * x_l * 3 * 2)
         batched_bbox_reg=torch.stack(batched_bbox_reg, 0),  # (bs, y_l * x_l * 3 * 2, 7)
         batched_bbox_reg_weights=torch.stack(batched_bbox_reg_weights, 0),  # (bs, y_l * x_l * 3 * 2)
-        batched_dir_labels=torch.stack(batched_dir_labels, 0),  # (bs, y_l * x_l * 3 * 2)
-        batched_dir_labels_weights=torch.stack(batched_dir_labels_weights, 0)  # (bs, y_l * x_l * 3 * 2)
     )
 
     return rt_dict

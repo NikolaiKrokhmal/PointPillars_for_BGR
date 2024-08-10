@@ -77,11 +77,12 @@ def main(args):
 
             optimizer.zero_grad()
 
-            # TODO: understand how to change these variables to match our data
+            # list of samples (tensors) in batch. shape:(#pts_per_pcd, 4 (point data:x,y,z,r))
             batched_pts = data_dict['batched_pts']
-            batched_gt_bboxes = data_dict['batched_gt_bboxes']
+            # list of samples (tensors) in batch. shape:(#cones_in_pcd,2 (cone center x,y))
+            batched_gt_bboxes = data_dict['batched_gt_bboxes'][0:1]
+            # list of samples with classes (here only one class)
             batched_labels = data_dict['batched_labels']
-            # !!!!!!!!!!!!! stopped here !!!!!!!!!!
             bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, anchor_target_dict = \
                 PointPillarsPollo(batched_pts=batched_pts,
                                   mode='train',
