@@ -217,7 +217,7 @@ class Head(nn.Module):
         return bbox_cls_pred, bbox_pred
 
 
-class PointPillars(nn.Module):
+class PointPillarsPollo(nn.Module):
     def __init__(self,
                  nclasses=1,
                  voxel_size=(0.2, 0.2, 3),

@@ -2,11 +2,10 @@ import argparse
 import os
 import torch
 from tqdm import tqdm
-import pdb
 
 from utils import setup_seed
 from dataset import Kitti, get_dataloader
-from model import PointPillars
+from model import PointPillarsPollo
 from loss import LossPollo
 from torch.utils.tensorboard import SummaryWriter
 
@@ -38,9 +37,9 @@ def main(args):
                                     shuffle=False)
 
     if not args.no_cuda:
-        pointpillars = PointPillars(nclasses=args.nclasses).cuda()
+        pointpillars = PointPillarsPollo(nclasses=args.nclasses).cuda()
     else:
-        pointpillars = PointPillars(nclasses=args.nclasses)
+        pointpillars = PointPillarsPollo(nclasses=args.nclasses)
 
     loss_func = LossPollo()
 
@@ -84,10 +83,10 @@ def main(args):
             batched_labels = data_dict['batched_labels']
             # !!!!!!!!!!!!! stopped here !!!!!!!!!!
             bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, anchor_target_dict = \
-                pointpillars(batched_pts=batched_pts,
-                             mode='train',
-                             batched_gt_bboxes=batched_gt_bboxes,
-                             batched_gt_labels=batched_labels)
+                PointPillarsPollo(batched_pts=batched_pts,
+                                  mode='train',
+                                  batched_gt_bboxes=batched_gt_bboxes,
+                                  batched_gt_labels=batched_labels)
 
             bbox_cls_pred = bbox_cls_pred.permute(0, 2, 3, 1).reshape(-1, args.nclasses)
             bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 7)
@@ -213,6 +212,6 @@ if __name__ == '__main__':
     parser.add_argument('--ckpt_freq_epoch', type=int, default=20)
     parser.add_argument('--no_cuda', action='store_true',
                         help='whether to use cuda')
-    args = parser.parse_args()
+    run_args = parser.parse_args()
 
-    main(args)
+    main(run_args)
