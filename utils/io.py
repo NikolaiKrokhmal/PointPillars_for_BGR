@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import pickle
-
+import open3d as o3d
 
 def read_pickle(file_path, suffix='.pkl'):
     assert os.path.splitext(file_path)[1] == suffix
@@ -17,11 +17,15 @@ def write_pickle(results, file_path):
 
 def read_points(file_path, dim=4):
     suffix = os.path.splitext(file_path)[1] 
-    assert suffix in ['.bin', '.ply']
-    if suffix == '.bin':
-        return np.fromfile(file_path, dtype=np.float32).reshape(-1, dim)
-    else:
-        raise NotImplementedError
+    if suffix in ['.bin', '.ply']:
+        if suffix == '.bin':
+            return np.fromfile(file_path, dtype=np.float32).reshape(-1, dim)
+        else:
+            raise NotImplementedError
+    elif suffix == ".pcd":
+        with open(file_path, 'rb') as f:
+            pcd = o3d.io.read_point_cloud(file_path)
+            return np.asarray(pcd.points)
 
 
 def write_points(lidar_points, file_path):

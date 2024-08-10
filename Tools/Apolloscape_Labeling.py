@@ -116,9 +116,9 @@ def open_pickle(file_path):
 
 
 if __name__ == '__main__':
-    label_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data\\detection_train_label\\detection_train_label"
-    pcd_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data\\PCD"
-    output_file = 'C:\\Yuval\\Me\\Projects\\Final Project\\Data\\PCD_MAP.pkl'
+    label_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data-ApolloScape\\detection_train_label\\detection_train_label"
+    pcd_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data-ApolloScape\\PCD"
+    output_file = 'C:\\Yuval\\Me\\Projects\\Final Project\\Data-ApolloScape\\PCD_MAP.pkl'
 
     label_data = process_cone_labels(label_folder, pcd_folder, output_file)
     # Optionally, you can print some information about the processed data
