@@ -10,6 +10,8 @@ from utils import setup_seed, keep_bbox_from_image_range, \
     iou2d, iou3d_camera, iou_bev
 from dataset import Kitti, get_dataloader
 from model import PointPillars
+# TODO: Optimize this function
+
 
 
 def get_score_thresholds(tp_scores, total_num_valid_gt, num_sample_pts=41):

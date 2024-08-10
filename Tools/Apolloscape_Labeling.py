@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 
 
-def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_labels.pkl'):
+def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_labels.pkl', extra = False):
     """
     Processes the cone labels in the given folder, creates a structured dictionary of labels,
     and saves the results to a .pkl file.
@@ -27,6 +27,7 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
     """
     label_data = {}
     alone = 0
+    extra_cones = []
 
     # Process each subfolder (vid)
     for vid_folder in glob.glob(os.path.join(folder_path, '*')):
@@ -53,6 +54,9 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
                     if line.startswith('5'):
                         # Extract the cone information
                         cone = [float(x) for x in line.split()[1:4]]
+                        if extra:
+                            extra_cones.append([float(x) for x in line.split()[4:7]])
+
                         cones[f"cone_{d}"] = {
                             "class": "Cone",
                             "location": cone
@@ -68,11 +72,40 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
                 os.remove(pcd_file)
                 continue
 
-
     # Save the processed labels to a .pkl file
-    with open(output_file, 'wb') as f:
-        pickle.dump(label_data, f)
+    if extra:
+        import matplotlib.pyplot as plt
+        distances = np.array(extra_cones)
 
+        heights = distances[:, 2]
+        diameters = np.sqrt(distances[:, 0] ** 2 + distances[:, 1] ** 2)
+
+        # Define number of bins for better resolution
+        num_bins = 50
+
+        # Create histogram bins for height and diameter with limits
+        height_bins = np.linspace(0, 1, num_bins)
+        diameter_bins = np.linspace(0, 1, num_bins)
+
+        # Calculate the 2D histogram
+        histogram, height_edges, diameter_edges = np.histogram2d(
+            heights, diameters, bins=[height_bins, diameter_bins])
+
+        # Plot the 2D histogram as a heatmap
+        plt.figure(figsize=(10, 7))
+        plt.imshow(histogram.T, origin='lower', aspect='auto',
+                   extent=[height_edges[0], height_edges[-1], diameter_bins[0], diameter_bins[-1]],
+                   cmap='viridis')
+        plt.colorbar(label='Count')
+        plt.xlabel('Height')
+        plt.ylabel('Diameter')
+        plt.title('Cone Histogram: Height vs. Diameter')
+        plt.xlim(0.2, 0.9)
+        plt.ylim(0.1, 0.7)
+        plt.show()
+    else:
+        with open(output_file, 'wb') as f:
+            pickle.dump(label_data, f)
     return label_data
 
 
@@ -87,12 +120,8 @@ if __name__ == '__main__':
     pcd_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data\\PCD"
     output_file = 'C:\\Yuval\\Me\\Projects\\Final Project\\Data\\PCD_MAP.pkl'
 
-    # label_data = process_cone_labels(label_folder, pcd_folder, output_file)
+    label_data = process_cone_labels(label_folder, pcd_folder, output_file)
     # Optionally, you can print some information about the processed data
     # print(f"Processed {len(label_data)} frames")
-    test = open_pickle(output_file)
-    print(test)
-
-
-
-
+    # test = open_pickle(output_file)
+    # print(test)
