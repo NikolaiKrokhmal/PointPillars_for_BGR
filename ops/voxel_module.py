@@ -39,7 +39,7 @@ class _Voxelization(torch.autograd.Function):
                 it is an experimental feature and we will appreciate it if
                 you could share with us the failing cases.
         Returns:
-            voxels: [M, max_points, ndim] float tensor. only contain points
+            voxels: [3] float tensor. only contain points
                     and returned when max_points != -1.
             coordinates: [M, 3] int32 tensor, always returned.
             num_points_per_voxel: [M] int32 tensor. Only returned when
@@ -51,7 +51,8 @@ class _Voxelization(torch.autograd.Function):
         coors = points.new_zeros(size=(max_voxels, 3), dtype=torch.int)
         num_points_per_voxel = points.new_zeros(
             size=(max_voxels, ), dtype=torch.int)
-        voxel_num = hard_voxelize(points, voxels, coors,
+
+        voxel_num = hard_voxelize(points.float(), voxels.float(), coors,
                                     num_points_per_voxel, voxel_size,
                                     coors_range, max_points, max_voxels, 3,
                                     deterministic)
@@ -96,8 +97,7 @@ class Voxelization(nn.Module):
         self.max_voxels = max_voxels
         self.deterministic = deterministic
 
-        point_cloud_range = torch.tensor(
-            point_cloud_range, dtype=torch.float32)
+        point_cloud_range = torch.tensor(point_cloud_range, dtype=torch.float32)
     
         voxel_size = torch.tensor(voxel_size, dtype=torch.float32)
         grid_size = (point_cloud_range[3:] -
@@ -117,7 +117,7 @@ class Voxelization(nn.Module):
             max_voxels = self.max_voxels[0]
         else:
             max_voxels = self.max_voxels[1]
-
+        #TODO here!
         return _Voxelization.apply(input, self.voxel_size, self.point_cloud_range,
                                    self.max_num_points, max_voxels,
                                    self.deterministic)
