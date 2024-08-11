@@ -5,5 +5,5 @@ build/
 *_logs*
 tmp/
 results/
-.idea/
+.idea/*
 pillar_logs/
