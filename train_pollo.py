@@ -3,27 +3,17 @@ import os
 import torch
 from tqdm import tqdm
 
-from utils import setup_seed
+from utils import setup_seed, TensorBoard
 from dataset import Apollo, get_dataloader
 from model import PointPillarsPollo
 from loss import LossPollo
+
 from torch.utils.tensorboard import SummaryWriter
 
 torch.set_default_dtype(torch.float32)
 
-# TODO: figure out how ot work with tensorboard
-def save_summary(writer, loss_dict, global_step, tag, lr=None, momentum=None):
-    for k, v in loss_dict.items():
-        writer.add_scalar(f'{tag}/{k}', v, global_step)
-    if lr is not None:
-        writer.add_scalar('lr', lr, global_step)
-    if momentum is not None:
-        writer.add_scalar('momentum', momentum, global_step)
-
-
 def main(args):
     setup_seed()
-    # TODO: adjust the dataloader to Apolloscape data
     train_dataset = Apollo(data_root=args.data_root,
                           split='train')
     val_dataset = Apollo(data_root=args.data_root,
@@ -59,6 +49,7 @@ def main(args):
                                                     base_momentum=0.95 * 0.895,
                                                     max_momentum=0.95,
                                                     div_factor=10)
+
     saved_logs_path = os.path.join(args.saved_path, 'summary')
     os.makedirs(saved_logs_path, exist_ok=True)
     writer = SummaryWriter(saved_logs_path)
