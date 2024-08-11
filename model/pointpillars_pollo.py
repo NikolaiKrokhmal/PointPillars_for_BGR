@@ -3,7 +3,7 @@ import pdb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.anchors import Anchors, anchor_target, anchors2bboxes
+from model.anchors_pollo import AnchorsPollo, anchor_target, anchors2bboxes
 from ops import Voxelization, nms_cuda
 from utils import limit_period
 
@@ -246,7 +246,7 @@ class PointPillarsPollo(nn.Module):
         ranges = [[0, -4.8, -2, 40, 4.8, 1]]
         sizes = [[0.2, 0.2, 3]]
         rotations = [0]
-        self.anchors_generator = Anchors(ranges=ranges,
+        self.anchors_generator = AnchorsPollo(ranges=ranges,
                                          sizes=sizes,
                                          rotations=rotations)
 
