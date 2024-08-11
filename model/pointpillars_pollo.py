@@ -34,7 +34,7 @@ class PillarLayer(nn.Module):
             coors.append(coors_out.long())
             npoints_per_pillar.append(num_points_per_voxel_out)
 
-        pillars = torch.cat(pillars, dim=0)  # (p1 + p2 + ... + pb, num_points, c)
+        pillars = torch.cat(pillars, dim=0)  # (p1 + p2 + ... + pb, num_points, 3)
         npoints_per_pillar = torch.cat(npoints_per_pillar, dim=0)  # (p1 + p2 + ... + pb, )
         coors_batch = []
         for i, cur_coors in enumerate(coors):
@@ -65,14 +65,13 @@ class PillarEncoder(nn.Module):
         return:  (bs, out_channel, y_l, x_l)
         """
         device = pillars.device
-        # 1. calculate offset to the points center (in each pillar)
+        # 1. calculate offset to the points mean (in each pillar)
         offset_pt_center = pillars[:, :, :3] - torch.sum(pillars[:, :, :3], dim=1, keepdim=True) / npoints_per_pillar[:,
                                                                                                    None,
                                                                                                    None]  # (p1 + p2 + ... + pb, num_points, 3)
 
         # 2. calculate offset to the pillar center
-        x_offset_pi_center = pillars[:, :, :1] - (
-                    coors_batch[:, None, 1:2] * self.vx + self.x_offset)  # (p1 + p2 + ... + pb, num_points, 1)
+        x_offset_pi_center = pillars[:, :, :1] - (coors_batch[:, None, 1:2] * self.vx + self.x_offset)  # (p1 + p2 + ... + pb, num_points, 1)
         y_offset_pi_center = pillars[:, :, 1:2] - (
                     coors_batch[:, None, 2:3] * self.vy + self.y_offset)  # (p1 + p2 + ... + pb, num_points, 1)
 
@@ -83,7 +82,6 @@ class PillarEncoder(nn.Module):
         features[:, :, 1:2] = y_offset_pi_center  # tmp
 
         # 4. find mask for (0, 0, 0) and update the encoded features
-        # a very beautiful implementation
         voxel_ids = torch.arange(0, pillars.size(1)).to(device)  # (num_points, )
         mask = voxel_ids[:, None] < npoints_per_pillar[None, :]  # (num_points, p1 + p2 + ... + pb)
         mask = mask.permute(1, 0).contiguous()  # (p1 + p2 + ... + pb, num_points)
@@ -114,7 +112,7 @@ class Backbone(nn.Module):
     def __init__(self, in_channel, out_channels, layer_nums, layer_strides=None):
         super().__init__()
         if layer_strides is None:
-            layer_strides = [2, 2, 2]
+            layer_strides = [2, 2]
         assert len(out_channels) == len(layer_nums)
         assert len(out_channels) == len(layer_strides)
 
@@ -133,7 +131,6 @@ class Backbone(nn.Module):
             in_channel = out_channels[i]
             self.multi_blocks.append(nn.Sequential(*blocks))
 
-        # in consitent with mmdet3d
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -176,8 +173,8 @@ class Neck(nn.Module):
 
     def forward(self, x):
         '''
-        x: [(bs, 64, 248, 216), (bs, 128, 124, 108), (bs, 256, 62, 54)]
-        return: (bs, 384, 248, 216)
+        x: [(bs, 64, h/2, w/2), (bs, 128, h/4, w/4)]
+        return: (bs, 256, h/2, w/2)
         '''
         outs = []
         for i in range(len(self.decoder_blocks)):
@@ -191,9 +188,8 @@ class Head(nn.Module):
     def __init__(self, in_channel, n_anchors, n_classes):
         super().__init__()
 
-        self.conv_cls = nn.Conv2d(in_channel, n_anchors * n_classes, 1)
-        self.conv_reg = nn.Conv2d(in_channel, n_anchors * 7, 1)
-        self.conv_dir_cls = nn.Conv2d(in_channel, n_anchors * 2, 1)
+        self.conv_det = nn.Conv2d(in_channel, n_anchors * n_classes, 1)
+        self.conv_reg = nn.Conv2d(in_channel, n_anchors * 2, 1)
 
         # in consitent with mmdet3d
         conv_layer_id = 0
@@ -210,23 +206,21 @@ class Head(nn.Module):
 
     def forward(self, x):
         '''
-        x: (bs, 384, 248, 216)
+        x: (bs, 256, h/2, w/2)
         return:
-              bbox_cls_pred: (bs, n_anchors*3, 248, 216)
-              bbox_pred: (bs, n_anchors*7, 248, 216)
-              bbox_dir_cls_pred: (bs, n_anchors*2, 248, 216)
+              bbox_cls_pred: (bs, n_anchors*n_classes, h/2, w/2)
+              bbox_pred: (bs, n_anchors*n_classes, h/2, w/2)
         '''
-        bbox_cls_pred = self.conv_cls(x)
+        bbox_cls_pred = self.conv_det(x)
         bbox_pred = self.conv_reg(x)
-        bbox_dir_cls_pred = self.conv_dir_cls(x)
-        return bbox_cls_pred, bbox_pred, bbox_dir_cls_pred
+        return bbox_cls_pred, bbox_pred
 
 
-class PointPillars(nn.Module):
+class PointPillarsPollo(nn.Module):
     def __init__(self,
                  nclasses=1,
-                 voxel_size=[0.2, 0.2, 4],
-                 point_cloud_range=[0, -4.8, -2, 80, 4.8, 2],
+                 voxel_size=(0.2, 0.2, 3),
+                 point_cloud_range=(0, -4.8, -2, 80, 4.8, 1),
                  max_num_points=32,
                  max_voxels=(10000, 40000)):
         super().__init__()
@@ -237,34 +231,32 @@ class PointPillars(nn.Module):
                                         max_voxels=max_voxels)
         self.pillar_encoder = PillarEncoder(voxel_size=voxel_size,
                                             point_cloud_range=point_cloud_range,
-                                            in_channel=9,
+                                            in_channel=8,
                                             out_channel=64)
         self.backbone = Backbone(in_channel=64,
-                                 out_channels=[64, 128, 256],
-                                 layer_nums=[3, 5, 5])
-        self.neck = Neck(in_channels=[64, 128, 256],
-                         upsample_strides=[1, 2, 4],
-                         out_channels=[128, 128, 128])
-        self.head = Head(in_channel=384, n_anchors=2 * nclasses, n_classes=nclasses)
+                                 out_channels=[64, 128],
+                                 layer_nums=[3, 5])
+        self.neck = Neck(in_channels=[64, 128],
+                         upsample_strides=[1, 2],
+                         out_channels=[128, 128])
+        self.head = Head(in_channel=256, n_anchors=1 * nclasses, n_classes=nclasses)
 
         # anchors
-        ranges = [[0, -39.68, -0.6, 69.12, 39.68, -0.6],
-                  [0, -39.68, -0.6, 69.12, 39.68, -0.6],
-                  [0, -39.68, -1.78, 69.12, 39.68, -1.78]]
-        sizes = [[0.6, 0.8, 1.73], [0.6, 1.76, 1.73], [1.6, 3.9, 1.56]]
-        rotations = [0, 1.57]
+        ranges = [[0, -4.8, -2, 80, 4.8, 1]]
+        sizes = [[0.2, 0.2, 3]]
+        rotations = [0]
         self.anchors_generator = Anchors(ranges=ranges,
                                          sizes=sizes,
                                          rotations=rotations)
 
         # train
+        # TODO: figure out what to do with this. need to change to x,y comparison
         self.assigners = [
-            {'pos_iou_thr': 0.5, 'neg_iou_thr': 0.35, 'min_iou_thr': 0.35},
-            {'pos_iou_thr': 0.5, 'neg_iou_thr': 0.35, 'min_iou_thr': 0.35},
-            {'pos_iou_thr': 0.6, 'neg_iou_thr': 0.45, 'min_iou_thr': 0.45},
+            {'pos_thr': 0.2, 'neg_thr': 0.6}
         ]
 
         # val and test
+        # TODO: need to change this for validation and testing purposes since we change loss
         self.nms_pre = 100
         self.nms_thr = 0.01
         self.score_thr = 0.1
@@ -399,7 +391,7 @@ class PointPillars(nn.Module):
         # bbox_cls_pred: (bs, n_anchors*3, 248, 216)
         # bbox_pred: (bs, n_anchors*7, 248, 216)
         # bbox_dir_cls_pred: (bs, n_anchors*2, 248, 216)
-        bbox_cls_pred, bbox_pred, bbox_dir_cls_pred = self.head(x)
+        bbox_cls_pred, bbox_pred = self.head(x)
 
         # anchors
         device = bbox_cls_pred.device
