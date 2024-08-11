@@ -7,3 +7,4 @@ tmp/
 results/
 .idea/*
 pillar_logs/
+.idea/inspectionProfiles
