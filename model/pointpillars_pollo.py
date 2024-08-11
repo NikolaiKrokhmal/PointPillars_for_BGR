@@ -89,7 +89,7 @@ class PillarEncoder(nn.Module):
         features *= mask[:, :, None]
 
         # 5. embedding
-        features = features.permute(0, 2, 1).contiguous()  # (p1 + p2 + ... + pb, 8, num_points)
+        features = features.permute(0, 2, 1).contiguous().float()  # (p1 + p2 + ... + pb, 8, num_points)
         features = F.relu(self.bn(self.conv(features)))  # (p1 + p2 + ... + pb, out_channels, num_points)
         pooling_features = torch.max(features, dim=-1)[0]  # (p1 + p2 + ... + pb, out_channels)
 
@@ -244,7 +244,7 @@ class PointPillarsPollo(nn.Module):
 
         # anchors
         ranges = [[0, -4.8, -2, 40, 4.8, 1]]
-        sizes = [[0.2, 0.2, 3]]
+        sizes = [[0.4, 0.4, 3]]
         rotations = [0]
         self.anchors_generator = AnchorsPollo(ranges=ranges,
                                          sizes=sizes,

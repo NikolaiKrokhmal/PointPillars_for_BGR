@@ -755,7 +755,9 @@ def get_manhattan_dist(anchors, cone_loc):
     x_anchors = anchors[:, 0]
     y_anchors = anchors[:, 1]
     x_cones = cone_loc[:, 0]
+    x_cones = x_cones.float()
     y_cones = cone_loc[:, 1]
+    y_cones = y_cones.float()
     xc_grid, xa_grid = torch.meshgrid(x_cones, x_anchors)
     yc_grid, ya_grid = torch.meshgrid(y_cones, y_anchors)
     x_dis = xc_grid - xa_grid

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from utils import limit_period, get_manhattan_dist
 
-
+torch.set_default_dtype(torch.float32)
 class AnchorsPollo:
     def __init__(self, ranges, sizes, rotations):
         assert len(ranges) == len(sizes)
@@ -20,19 +20,18 @@ class AnchorsPollo:
         return: shape=(y_l, x_l, 2, 7)
         """
         device = feature_map_size.device
-        x_centers = torch.linspace(anchor_range[0], anchor_range[3], feature_map_size[1] + 1, device=device)
-        y_centers = torch.linspace(anchor_range[1], anchor_range[4], feature_map_size[0] + 1, device=device)
-        z_centers = torch.linspace(anchor_range[2], anchor_range[5], 1 + 1, device=device)
+        x_centers = torch.linspace(anchor_range[0], anchor_range[3], feature_map_size[1], device=device)
+        y_centers = torch.linspace(anchor_range[1], anchor_range[4], feature_map_size[0], device=device)
+        z_centers = torch.tensor([-0.5], device=device)
 
         x_shift = (x_centers[1] - x_centers[0]) / 2
         y_shift = (y_centers[1] - y_centers[0]) / 2
-        z_shift = (z_centers[1] - z_centers[0]) / 2
+
         x_centers = x_centers[:feature_map_size[1]] + x_shift  # (feature_map_size[1], )
         y_centers = y_centers[:feature_map_size[0]] + y_shift  # (feature_map_size[0], )
-        z_centers = z_centers[:1] + z_shift  # (1, )
 
         # [feature_map_size[1], feature_map_size[0], 1, 2] * 4
-        meshgrids = torch.meshgrid(x_centers, y_centers, z_centers, rotations)
+        meshgrids = torch.meshgrid(x_centers, y_centers, z_centers, rotations.float())
         meshgrids = list(meshgrids)
         for i in range(len(meshgrids)):
             meshgrids[i] = meshgrids[i][..., None]  # [feature_map_size[1], feature_map_size[0], 1, 2, 1]
@@ -52,7 +51,7 @@ class AnchorsPollo:
         device = feature_map_size.device
         ranges = torch.tensor(self.ranges, device=device)
         sizes = torch.tensor(self.sizes, device=device)
-        rotations = torch.tensor(self.rotations, device=device)
+        rotations = torch.tensor(self.rotations, device=device, dtype=torch.float)
         multi_anchors = []
         for i in range(len(ranges)):
             anchors = self.get_anchors(feature_map_size=feature_map_size,
@@ -145,11 +144,11 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
             cur_anchors = anchors[:, :, j, :, :].reshape(-1, 7)
 
             # get manhattan distance - which is the regression target
-            dist_mat = get_manhattan_dist(gt_bboxes, cur_anchors)
+            dist_mat = get_manhattan_dist(cur_anchors, gt_bboxes)
 
             # create label matrix and make a label vector out of it
-            mask_in = (abs(dist_mat[0]) < 0.2) and abs((dist_mat[1] < 0.2))
-            mask_out = (abs(dist_mat[0]) > 0.6) or abs((dist_mat[1] > 0.6))
+            mask_in = (abs(dist_mat[0]) < pos_thr) and abs((dist_mat[1] < pos_thr))
+            mask_out = (abs(dist_mat[0]) > neg_thr) or abs((dist_mat[1] > neg_thr))
             label_mat = -torch.ones_like(1, dist_mat.shape[1], dist_mat.shape[2],
                                          device=dist_mat.device, dtype=dist_mat.dtype)
             label_mat = label_mat.squeeze(dim=0)
