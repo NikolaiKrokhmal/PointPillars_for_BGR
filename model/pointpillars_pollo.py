@@ -253,9 +253,7 @@ class PointPillarsPollo(nn.Module):
         # train
         # TODO: figure out what to do with this. need to change to x,y comparison
         self.assigners = [
-            {'pos_iou_thr': 0.5, 'neg_iou_thr': 0.35, 'min_iou_thr': 0.35},
-            {'pos_iou_thr': 0.5, 'neg_iou_thr': 0.35, 'min_iou_thr': 0.35},
-            {'pos_iou_thr': 0.6, 'neg_iou_thr': 0.45, 'min_iou_thr': 0.45},
+            {'pos_thr': 0.2, 'neg_thr': 0.6}
         ]
 
         # val and test

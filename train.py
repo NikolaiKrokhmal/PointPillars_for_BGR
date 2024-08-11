@@ -134,6 +134,7 @@ def main(args):
         if (epoch + 1) % args.ckpt_freq_epoch == 0:
             torch.save(pointpillars.state_dict(), os.path.join(saved_ckpt_path, f'epoch_{epoch+1}.pth'))
 
+        # validation step each second epoch
         if epoch % 2 == 0:
             continue
         pointpillars.eval()

@@ -751,7 +751,14 @@ def get_frustum(bbox_image, C, near_clip=0.001, far_clip=100):
     return ret_xyz
 
 
-def distance_matrix(anchors, cone_labels):
-
-
+def get_manhattan_dist(anchors, cone_loc):
+    x_anchors = anchors[:, 0]
+    y_anchors = anchors[:, 1]
+    x_cones = cone_loc[:, 0]
+    y_cones = cone_loc[:, 1]
+    xc_grid, xa_grid = torch.meshgrid(x_cones, x_anchors)
+    yc_grid, ya_grid = torch.meshgrid(y_cones, y_anchors)
+    x_dis = xc_grid - xa_grid
+    y_dis = yc_grid - ya_grid
+    dist_mat = torch.stack([x_dis, y_dis], dim=0)
     return dist_mat
