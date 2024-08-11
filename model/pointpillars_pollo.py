@@ -54,8 +54,7 @@ class PillarEncoder(nn.Module):
         self.x_offset = voxel_size[0] / 2 + point_cloud_range[0]
         self.y_offset = voxel_size[1] / 2 + point_cloud_range[1]
         self.x_l = int((point_cloud_range[3] - point_cloud_range[0]) / voxel_size[0])
-        self.y_l = int((point_cloud_range[4] - point_cloud_range[1]) / voxel_size[1])
-
+        self.y_l = int(np.round((point_cloud_range[4] - point_cloud_range[1]) / voxel_size[1]))
         self.conv = nn.Conv1d(in_channel, out_channel, 1, bias=False)
         self.bn = nn.BatchNorm1d(out_channel, eps=1e-3, momentum=0.01)
 
@@ -222,9 +221,9 @@ class PointPillarsPollo(nn.Module):
     def __init__(self,
                  nclasses=1,
                  voxel_size=(0.2, 0.2, 3),
-                 point_cloud_range=(0, -4.8, -2, 80, 4.8, 1),
+                 point_cloud_range=(0, -4.8, -2, 40, 4.8, 1), #(0, -4.8, -2, 80, 4.8, 1)
                  max_num_points=32,
-                 max_voxels=(10000, 40000)):
+                 max_voxels=(8000, 40000)):
         super().__init__()
         self.nclasses = nclasses
         self.pillar_layer = PillarLayer(voxel_size=voxel_size,
@@ -244,7 +243,7 @@ class PointPillarsPollo(nn.Module):
         self.head = Head(in_channel=256, n_anchors=1 * nclasses, n_classes=nclasses)
 
         # anchors
-        ranges = [[0, -4.8, -2, 80, 4.8, 1]]
+        ranges = [[0, -4.8, -2, 40, 4.8, 1]]
         sizes = [[0.2, 0.2, 3]]
         rotations = [0]
         self.anchors_generator = Anchors(ranges=ranges,
