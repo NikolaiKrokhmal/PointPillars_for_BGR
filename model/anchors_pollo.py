@@ -147,8 +147,8 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
             dist_mat = get_manhattan_dist(cur_anchors, gt_bboxes)
 
             # create label matrix and make a label vector out of it
-            mask_in = (abs(dist_mat[0]) < pos_thr) and abs((dist_mat[1] < pos_thr))
-            mask_out = (abs(dist_mat[0]) > neg_thr) or abs((dist_mat[1] > neg_thr))
+            mask_in = (abs(dist_mat[1, :, :]) < pos_thr)*(abs(dist_mat[0, :, :]) < pos_thr)
+            mask_out = (abs(dist_mat[1, :, :]) > neg_thr)*(abs(dist_mat[0, :, :]) > neg_thr)
             label_mat = -torch.ones_like(1, dist_mat.shape[1], dist_mat.shape[2],
                                          device=dist_mat.device, dtype=dist_mat.dtype)
             label_mat = label_mat.squeeze(dim=0)

@@ -3,8 +3,7 @@ import os
 import glob
 import numpy as np
 import pickle
-
-
+import matplotlib
 def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_labels.pkl', extra = False, max_dist = 40):
     """
     Processes the cone labels in the given folder, creates a structured dictionary of labels,
@@ -36,6 +35,7 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
         print(f"Processing subfolder: {vid_name}")
 
         # Process text files in the subfolder
+        i = 0
         for frame in glob.glob(os.path.join(vid_folder, '*.txt')):
             frame_name = os.path.splitext(os.path.basename(frame))[0]
             key = f"{vid_name}_{frame_name}"
@@ -48,24 +48,24 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
                 continue
 
             with open(frame, 'r') as f:
-
                 content = f.readlines()
                 cones = {}
-                for i, line in enumerate(content):
+                for line in content:
                     if line.startswith('5'):
                         # Extract the cone information
                         cone = [float(x) for x in line.split()[1:4]]
                         dist = np.sqrt(cone[0]**2 + cone[1]**2)
                         if dist <= max_dist:
-                            if extra:
-                                extra_cones.append([float(x) for x in line.split()[4:7]])
 
-                            cones[f"cone_{d}"] = {
+                            extra_cones.append([float(x) for x in line.split()[4:7]])
+
+                            cones[f"cone_{i}"] = {
                                 "class": "Cone",
-                                "location": cone
-                            }
+                                "location": cone}
+                            i = i + 1
                         else:
                             d = d + 1
+
             if cones:
                 label_data[key] = {
                     "path": pcd_file,
@@ -75,6 +75,7 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
                 os.remove(frame)
                 os.remove(pcd_file)
                 continue
+
 
     # Save the processed labels to a .pkl file
     if extra:
@@ -128,5 +129,5 @@ if __name__ == '__main__':
     pcd_folder = os.path.join(args.data_root, 'PCD')
     output_file = os.path.join(args.data_root, 'PCD_MAP.pkl')
 
-    label_data = process_cone_labels(label_folder, pcd_folder, output_file,True)
+    label_data = process_cone_labels(label_folder, pcd_folder, output_file)
 
