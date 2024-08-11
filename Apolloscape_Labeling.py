@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 
 
-def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_labels.pkl', extra = False):
+def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_labels.pkl', extra = False, max_dist = 40):
     """
     Processes the cone labels in the given folder, creates a structured dictionary of labels,
     and saves the results to a .pkl file.
@@ -29,7 +29,7 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
     label_data = {}
     alone = 0
     extra_cones = []
-
+    d = 0
     # Process each subfolder (vid)
     for vid_folder in glob.glob(os.path.join(folder_path, '*')):
         vid_name = os.path.basename(vid_folder)
@@ -48,21 +48,24 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
                 continue
 
             with open(frame, 'r') as f:
-                d = 0
+
                 content = f.readlines()
                 cones = {}
                 for i, line in enumerate(content):
                     if line.startswith('5'):
                         # Extract the cone information
                         cone = [float(x) for x in line.split()[1:4]]
-                        if extra:
-                            extra_cones.append([float(x) for x in line.split()[4:7]])
+                        dist = np.sqrt(cone[0]**2 + cone[1]**2)
+                        if dist <= max_dist:
+                            if extra:
+                                extra_cones.append([float(x) for x in line.split()[4:7]])
 
-                        cones[f"cone_{d}"] = {
-                            "class": "Cone",
-                            "location": cone
-                        }
-                        d = d + 1
+                            cones[f"cone_{d}"] = {
+                                "class": "Cone",
+                                "location": cone
+                            }
+                        else:
+                            d = d + 1
             if cones:
                 label_data[key] = {
                     "path": pcd_file,
@@ -107,6 +110,7 @@ def process_cone_labels(folder_path, pcd_folder_path, output_file='processed_lab
     else:
         with open(output_file, 'wb') as f:
             pickle.dump(label_data, f)
+    print(f"found {d} cones out of range! out of {len(extra_cones)+d}")
     return label_data
 
 
@@ -124,5 +128,5 @@ if __name__ == '__main__':
     pcd_folder = os.path.join(args.data_root, 'PCD')
     output_file = os.path.join(args.data_root, 'PCD_MAP.pkl')
 
-    label_data = process_cone_labels(label_folder, pcd_folder, output_file)
+    label_data = process_cone_labels(label_folder, pcd_folder, output_file,True)
 
