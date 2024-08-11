@@ -1,3 +1,4 @@
+import argparse
 import os
 import glob
 import numpy as np
@@ -116,12 +117,12 @@ def open_pickle(file_path):
 
 
 if __name__ == '__main__':
-    label_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data-ApolloScape\\detection_train_label\\detection_train_label"
-    pcd_folder = "C:\\Yuval\\Me\\Projects\\Final Project\\Data-ApolloScape\\PCD"
-    output_file = 'C:\\Yuval\\Me\\Projects\\Final Project\\Data-ApolloScape\\PCD_MAP.pkl'
+    parser = argparse.ArgumentParser(description='Pre process Apolloscape data')
+    parser.add_argument('--data_root')
+    args = parser.parse_args()
+    label_folder = os.path.join(args.data_root, 'detection_train_label')
+    pcd_folder = os.path.join(args.data_root, 'PCD')
+    output_file = os.path.join(args.data_root, 'PCD_MAP.pkl')
 
     label_data = process_cone_labels(label_folder, pcd_folder, output_file)
-    # Optionally, you can print some information about the processed data
-    # print(f"Processed {len(label_data)} frames")
-    # test = open_pickle(output_file)
-    # print(test)
+

@@ -3,7 +3,7 @@ import pdb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.anchors import Anchors, anchor_target, anchors2bboxes
+from model.anchors_pollo import AnchorsPollo, anchor_target, anchors2bboxes
 from ops import Voxelization, nms_cuda
 from utils import limit_period
 
@@ -90,7 +90,7 @@ class PillarEncoder(nn.Module):
         features *= mask[:, :, None]
 
         # 5. embedding
-        features = features.permute(0, 2, 1).contiguous()  # (p1 + p2 + ... + pb, 8, num_points)
+        features = features.permute(0, 2, 1).contiguous().float()  # (p1 + p2 + ... + pb, 8, num_points)
         features = F.relu(self.bn(self.conv(features)))  # (p1 + p2 + ... + pb, out_channels, num_points)
         pooling_features = torch.max(features, dim=-1)[0]  # (p1 + p2 + ... + pb, out_channels)
 
@@ -247,16 +247,14 @@ class PointPillarsPollo(nn.Module):
         ranges = [[0, -4.8, -2, 40, 4.9, 1]]
         sizes = [[0.2, 0.2, 3]]
         rotations = [0]
-        self.anchors_generator = Anchors(ranges=ranges,
+        self.anchors_generator = AnchorsPollo(ranges=ranges,
                                          sizes=sizes,
                                          rotations=rotations)
 
         # train
         # TODO: figure out what to do with this. need to change to x,y comparison
         self.assigners = [
-            {'pos_iou_thr': 0.5, 'neg_iou_thr': 0.35, 'min_iou_thr': 0.35},
-            {'pos_iou_thr': 0.5, 'neg_iou_thr': 0.35, 'min_iou_thr': 0.35},
-            {'pos_iou_thr': 0.6, 'neg_iou_thr': 0.45, 'min_iou_thr': 0.45},
+            {'pos_thr': 0.2, 'neg_thr': 0.6}
         ]
 
         # val and test

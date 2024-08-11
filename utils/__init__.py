@@ -7,3 +7,4 @@ from .process import bbox_camera2lidar, bbox3d2bevcorners, box_collision_test, \
     get_points_num_in_bbox, iou2d_nearest, iou2d, iou3d, iou3d_camera, iou_bev, \
     bbox3d2corners_camera, points_camera2image
 from .vis_o3d import vis_pc, vis_img_3d
+from .process_pollo import get_manhattan_dist
