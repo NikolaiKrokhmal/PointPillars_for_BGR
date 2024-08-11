@@ -4,11 +4,12 @@ import torch
 from tqdm import tqdm
 
 from utils import setup_seed
-from dataset import Kitti, get_dataloader
+from dataset import Apollo, get_dataloader
 from model import PointPillarsPollo
 from loss import LossPollo
 from torch.utils.tensorboard import SummaryWriter
 
+torch.set_default_dtype(torch.float32)
 
 # TODO: figure out how ot work with tensorboard
 def save_summary(writer, loss_dict, global_step, tag, lr=None, momentum=None):
@@ -23,9 +24,9 @@ def save_summary(writer, loss_dict, global_step, tag, lr=None, momentum=None):
 def main(args):
     setup_seed()
     # TODO: adjust the dataloader to Apolloscape data
-    train_dataset = Kitti(data_root=args.data_root,
+    train_dataset = Apollo(data_root=args.data_root,
                           split='train')
-    val_dataset = Kitti(data_root=args.data_root,
+    val_dataset = Apollo(data_root=args.data_root,
                         split='val')
     train_dataloader = get_dataloader(dataset=train_dataset,
                                       batch_size=args.batch_size,
@@ -80,11 +81,11 @@ def main(args):
             # list of samples (tensors) in batch. shape:(#pts_per_pcd, 4 (point data:x,y,z,r))
             batched_pts = data_dict['batched_pts']
             # list of samples (tensors) in batch. shape:(#cones_in_pcd,2 (cone center x,y))
-            batched_gt_bboxes = data_dict['batched_gt_bboxes'][0:1]
+            batched_gt_bboxes = data_dict['batched_gt_bboxes']
             # list of samples with classes (here only one class)
             batched_labels = data_dict['batched_labels']
             bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, anchor_target_dict = \
-                PointPillarsPollo(batched_pts=batched_pts,
+                pointpillars(batched_pts=batched_pts,
                                   mode='train',
                                   batched_gt_bboxes=batched_gt_bboxes,
                                   batched_gt_labels=batched_labels)
@@ -201,7 +202,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
-    parser.add_argument('--data_root', default='/mnt/ssd1/lifa_rdata/det/kitti',
+    parser.add_argument('--data_root', default='../../Data-ApolloScape/PCD_MAP.pkl',
                         help='your data root for kitti')
     parser.add_argument('--saved_path', default='pillar_logs')
     parser.add_argument('--batch_size', type=int, default=6)

@@ -3,10 +3,11 @@ import pdb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.anchors import Anchors, anchor_target, anchors2bboxes
+from model.anchors_pollo import AnchorsPollo, anchor_target, anchors2bboxes
 from ops import Voxelization, nms_cuda
 from utils import limit_period
 
+torch.set_default_dtype(torch.float32)
 
 class PillarLayer(nn.Module):
     def __init__(self, voxel_size, point_cloud_range, max_num_points, max_voxels):
@@ -52,8 +53,7 @@ class PillarEncoder(nn.Module):
         self.x_offset = voxel_size[0] / 2 + point_cloud_range[0]
         self.y_offset = voxel_size[1] / 2 + point_cloud_range[1]
         self.x_l = int((point_cloud_range[3] - point_cloud_range[0]) / voxel_size[0])
-        self.y_l = int((point_cloud_range[4] - point_cloud_range[1]) / voxel_size[1])
-
+        self.y_l = int(np.round((point_cloud_range[4] - point_cloud_range[1]) / voxel_size[1]))
         self.conv = nn.Conv1d(in_channel, out_channel, 1, bias=False)
         self.bn = nn.BatchNorm1d(out_channel, eps=1e-3, momentum=0.01)
 
@@ -88,7 +88,7 @@ class PillarEncoder(nn.Module):
         features *= mask[:, :, None]
 
         # 5. embedding
-        features = features.permute(0, 2, 1).contiguous()  # (p1 + p2 + ... + pb, 8, num_points)
+        features = features.permute(0, 2, 1).contiguous().float()  # (p1 + p2 + ... + pb, 8, num_points)
         features = F.relu(self.bn(self.conv(features)))  # (p1 + p2 + ... + pb, out_channels, num_points)
         pooling_features = torch.max(features, dim=-1)[0]  # (p1 + p2 + ... + pb, out_channels)
 
@@ -220,9 +220,9 @@ class PointPillarsPollo(nn.Module):
     def __init__(self,
                  nclasses=1,
                  voxel_size=(0.2, 0.2, 3),
-                 point_cloud_range=(0, -4.8, -2, 80, 4.8, 1),
+                 point_cloud_range=(0, -4.8, -2, 40, 4.8, 1), #(0, -4.8, -2, 80, 4.8, 1)
                  max_num_points=32,
-                 max_voxels=(10000, 40000)):
+                 max_voxels=(8000, 40000)):
         super().__init__()
         self.nclasses = nclasses
         self.pillar_layer = PillarLayer(voxel_size=voxel_size,
@@ -242,10 +242,10 @@ class PointPillarsPollo(nn.Module):
         self.head = Head(in_channel=256, n_anchors=1 * nclasses, n_classes=nclasses)
 
         # anchors
-        ranges = [[0, -4.8, -2, 80, 4.8, 1]]
-        sizes = [[0.2, 0.2, 3]]
+        ranges = [[0, -4.8, -2, 40, 4.8, 1]]
+        sizes = [[0.4, 0.4, 3]]
         rotations = [0]
-        self.anchors_generator = Anchors(ranges=ranges,
+        self.anchors_generator = AnchorsPollo(ranges=ranges,
                                          sizes=sizes,
                                          rotations=rotations)
 
@@ -406,11 +406,10 @@ class PointPillarsPollo(nn.Module):
                                                assigners=self.assigners,
                                                nclasses=self.nclasses)
 
-            return bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, anchor_target_dict
+            return bbox_cls_pred, bbox_pred, anchor_target_dict
         elif mode == 'val':
             results = self.get_predicted_bboxes(bbox_cls_pred=bbox_cls_pred,
                                                 bbox_pred=bbox_pred,
-                                                bbox_dir_cls_pred=bbox_dir_cls_pred,
                                                 batched_anchors=batched_anchors)
             return results
 
