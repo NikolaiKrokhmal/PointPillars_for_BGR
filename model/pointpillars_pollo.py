@@ -79,6 +79,7 @@ class PillarEncoder(nn.Module):
         # 3. encoder
         features = torch.cat([pillars, offset_pt_center, x_offset_pi_center, y_offset_pi_center],
                              dim=-1)  # (p1 + p2 + ... + pb, num_points, 8)
+        features = features.to(torch.float32)
         features[:, :, 0:1] = x_offset_pi_center  # tmp
         features[:, :, 1:2] = y_offset_pi_center  # tmp
 
@@ -243,7 +244,7 @@ class PointPillarsPollo(nn.Module):
         self.head = Head(in_channel=256, n_anchors=1 * nclasses, n_classes=nclasses)
 
         # anchors
-        ranges = [[0, -4.8, -2, 40, 4.8, 1]]
+        ranges = [[0, -4.8, -2, 40, 4.9, 1]]
         sizes = [[0.2, 0.2, 3]]
         rotations = [0]
         self.anchors_generator = Anchors(ranges=ranges,
