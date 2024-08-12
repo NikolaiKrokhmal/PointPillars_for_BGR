@@ -149,9 +149,7 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
             # create label matrix and make a label vector out of it
             mask_in = (abs(dist_mat[1, :, :]) < pos_thr)*(abs(dist_mat[0, :, :]) < pos_thr)
             mask_out = (abs(dist_mat[1, :, :]) > neg_thr)*(abs(dist_mat[0, :, :]) > neg_thr)
-            label_mat = -torch.ones_like(1, dist_mat.shape[1], dist_mat.shape[2],
-                                         device=dist_mat.device, dtype=dist_mat.dtype)
-            label_mat = label_mat.squeeze(dim=0)
+            label_mat = -torch.ones_like(mask_in,device=dist_mat.device, dtype=dist_mat.dtype)
             label_mat[mask_in] = 1
             label_mat[mask_out] = -2
             assigned_gt_labels = torch.amax(label_mat, 0).long()
@@ -165,33 +163,32 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
             assigned_gt_labels_weights[assigned_gt_labels == 0] = 1
 
             # create regression matrix
-            assigned_gt_reg = torch.zeros_like(dist_mat)
-            assigned_gt_reg = assigned_gt_reg[:, mask_in]
+            assigned_gt_reg = dist_mat*mask_in
+            assigned_gt_reg = assigned_gt_reg.sum(dim=1)
 
             # create regression weights
-            assigned_gt_reg_weights = torch.zeros_like(assigned_gt_labels)
-            assigned_gt_reg_weights[assigned_gt_labels == 1] = 1
+            assigned_gt_reg_weights = mask_in.sum(dim=0)
 
-            multi_labels.append(assigned_gt_labels.reshape(d1, d2, 1, d4))
-            multi_label_weights.append(assigned_gt_labels_weights.reshape(d1, d2, 1, d4))
-            multi_bbox_reg.append(assigned_gt_reg.reshape(d1, d2, 1, d4, -1))
-            multi_bbox_reg_weights.append(assigned_gt_reg_weights.reshape(d1, d2, 1, d4))
+            # multi_labels.append(assigned_gt_labels)
+            # multi_label_weights.append(assigned_gt_labels_weights)
+            # multi_bbox_reg.append(assigned_gt_reg)
+            # multi_bbox_reg_weights.append(assigned_gt_reg_weights)
 
-        multi_labels = torch.cat(multi_labels, dim=-2).reshape(-1)
-        multi_label_weights = torch.cat(multi_label_weights, dim=-2).reshape(-1)
-        multi_bbox_reg = torch.cat(multi_bbox_reg, dim=-3).reshape(-1, d5)
-        multi_bbox_reg_weights = torch.cat(multi_bbox_reg_weights, dim=-2).reshape(-1)
+        # multi_labels = torch.cat(multi_labels, dim=-2).reshape(-1)
+        # multi_label_weights = torch.cat(multi_label_weights, dim=-2).reshape(-1)
+        # multi_bbox_reg = torch.cat(multi_bbox_reg, dim=-3).reshape(-1, d5)
+        # multi_bbox_reg_weights = torch.cat(multi_bbox_reg_weights, dim=-2).reshape(-1)
 
-        batched_labels.append(multi_labels)
-        batched_label_weights.append(multi_label_weights)
-        batched_bbox_reg.append(multi_bbox_reg)
-        batched_bbox_reg_weights.append(multi_bbox_reg_weights)
+        batched_labels.append(assigned_gt_labels)
+        batched_label_weights.append(assigned_gt_labels_weights)
+        batched_bbox_reg.append(assigned_gt_reg)
+        batched_bbox_reg_weights.append(assigned_gt_reg_weights)
 
     rt_dict = dict(
-        batched_labels=torch.stack(batched_labels, 0),  # (bs, y_l * x_l * 3 * 2)
-        batched_label_weights=torch.stack(batched_label_weights, 0),  # (bs, y_l * x_l * 3 * 2)
-        batched_bbox_reg=torch.stack(batched_bbox_reg, 0),  # (bs, y_l * x_l * 3 * 2, 7)
-        batched_bbox_reg_weights=torch.stack(batched_bbox_reg_weights, 0),  # (bs, y_l * x_l * 3 * 2)
+        batched_labels=torch.stack(batched_labels, 0),  # (bs, y_l * x_l * 1 * 1)
+        batched_label_weights=torch.stack(batched_label_weights, 0),  # (bs, y_l * x_l * 1 * 1)
+        batched_bbox_reg=torch.permute(torch.stack(batched_bbox_reg, 0), [0, 2, 1]).contiguous(),  # (bs, y_l * x_l * 1 * 1, 2)
+        batched_bbox_reg_weights=torch.stack(batched_bbox_reg_weights, 0),  # (bs, y_l * x_l * 1 * 1)
     )
 
     return rt_dict

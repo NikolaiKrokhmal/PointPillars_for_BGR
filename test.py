@@ -35,7 +35,7 @@ def main(args):
         'Car': 2
         }
     LABEL2CLASSES = {v:k for k, v in CLASSES.items()}
-    pcd_limit_range = np.array([0, -40, -3, 70.4, 40, 0.0], dtype=np.float32)
+    pcd_limit_range = np.array([-40, -40, -2, 40, 40, 1], dtype=np.float32)
 
     if not args.no_cuda:
         model = PointPillars(nclasses=len(CLASSES)).cuda()

@@ -189,9 +189,9 @@ class Head(nn.Module):
         super().__init__()
 
         self.conv_det = nn.Conv2d(in_channel, n_anchors * n_classes, 1)
+        self.sigmoid = nn.Sigmoid()
         self.conv_reg = nn.Conv2d(in_channel, n_anchors * 2, 1)
 
-        # in consitent with mmdet3d
         conv_layer_id = 0
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -208,12 +208,12 @@ class Head(nn.Module):
         '''
         x: (bs, 256, h/2, w/2)
         return:
-              bbox_cls_pred: (bs, n_anchors*n_classes, h/2, w/2)
+              det_prob_pred: (bs, n_anchors*n_classes, h/2, w/2)
               bbox_pred: (bs, n_anchors*n_classes, h/2, w/2)
         '''
-        bbox_cls_pred = self.conv_det(x)
+        det_prob_pred = self.sigmoid(self.conv_det(x))
         bbox_pred = self.conv_reg(x)
-        return bbox_cls_pred, bbox_pred
+        return det_prob_pred, bbox_pred
 
 
 class PointPillarsPollo(nn.Module):
@@ -250,43 +250,36 @@ class PointPillarsPollo(nn.Module):
                                          rotations=rotations)
 
         # train
-        # TODO: figure out what to do with this. need to change to x,y comparison
         self.assigners = [
             {'pos_thr': 0.2, 'neg_thr': 0.6}
         ]
 
         # val and test
-        # TODO: need to change this for validation and testing purposes since we change loss
         self.nms_pre = 100
         self.nms_thr = 0.01
         self.score_thr = 0.1
         self.max_num = 50
 
-    def get_predicted_bboxes_single(self, bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, anchors):
-        '''
-        bbox_cls_pred: (n_anchors*3, 248, 216)
-        bbox_pred: (n_anchors*7, 248, 216)
-        bbox_dir_cls_pred: (n_anchors*2, 248, 216)
-        anchors: (y_l, x_l, 3, 2, 7)
+    def get_predicted_bboxes_single(self, det_prob_pred, bbox_pred, anchors):
+        """
+        det_prob_pred: (n_anchors*nclasses, 200, 200)
+        bbox_pred: (n_anchors*7, 200, 200)
+        bbox_dir_cls_pred: (n_anchors*2, 200, 200)
+        anchors: (y_l, x_l, 3, 2, 2)
         return:
-            bboxes: (k, 7)
+            bboxes: (k, 2)
             labels: (k, )
             scores: (k, )
-        '''
+        """
         # 0. pre-process
-        bbox_cls_pred = bbox_cls_pred.permute(1, 2, 0).reshape(-1, self.nclasses)
+        det_prob_pred = det_prob_pred.permute(1, 2, 0).reshape(-1, self.nclasses)
         bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 7)
-        bbox_dir_cls_pred = bbox_dir_cls_pred.permute(1, 2, 0).reshape(-1, 2)
         anchors = anchors.reshape(-1, 7)
 
-        bbox_cls_pred = torch.sigmoid(bbox_cls_pred)
-        bbox_dir_cls_pred = torch.max(bbox_dir_cls_pred, dim=1)[1]
-
         # 1. obtain self.nms_pre bboxes based on scores
-        inds = bbox_cls_pred.max(1)[0].topk(self.nms_pre)[1]
-        bbox_cls_pred = bbox_cls_pred[inds]
+        inds = det_prob_pred.max(1)[0].topk(self.nms_pre)[1]
+        det_prob_pred = det_prob_pred[inds]
         bbox_pred = bbox_pred[inds]
-        bbox_dir_cls_pred = bbox_dir_cls_pred[inds]
         anchors = anchors[inds]
 
         # 2. decode predicted offsets to bboxes
@@ -302,33 +295,30 @@ class PointPillarsPollo(nn.Module):
         ret_bboxes, ret_labels, ret_scores = [], [], []
         for i in range(self.nclasses):
             # 3.1 filter bboxes with scores below self.score_thr
-            cur_bbox_cls_pred = bbox_cls_pred[:, i]
-            score_inds = cur_bbox_cls_pred > self.score_thr
+            det_prob_pred = det_prob_pred[:, i]
+            score_inds = det_prob_pred > self.score_thr
             if score_inds.sum() == 0:
                 continue
 
-            cur_bbox_cls_pred = cur_bbox_cls_pred[score_inds]
+            det_prob_pred = det_prob_pred[score_inds]
             cur_bbox_pred2d = bbox_pred2d[score_inds]
             cur_bbox_pred = bbox_pred[score_inds]
-            cur_bbox_dir_cls_pred = bbox_dir_cls_pred[score_inds]
 
             # 3.2 nms core
             keep_inds = nms_cuda(boxes=cur_bbox_pred2d,
-                                 scores=cur_bbox_cls_pred,
+                                 scores=det_prob_pred,
                                  thresh=self.nms_thr,
                                  pre_maxsize=None,
                                  post_max_size=None)
 
-            cur_bbox_cls_pred = cur_bbox_cls_pred[keep_inds]
+            det_prob_pred = det_prob_pred[keep_inds]
             cur_bbox_pred = cur_bbox_pred[keep_inds]
-            cur_bbox_dir_cls_pred = cur_bbox_dir_cls_pred[keep_inds]
             cur_bbox_pred[:, -1] = limit_period(cur_bbox_pred[:, -1].detach().cpu(), 1, np.pi).to(
                 cur_bbox_pred)  # [-pi, 0]
-            cur_bbox_pred[:, -1] += (1 - cur_bbox_dir_cls_pred) * np.pi
 
             ret_bboxes.append(cur_bbox_pred)
             ret_labels.append(torch.zeros_like(cur_bbox_pred[:, 0], dtype=torch.long) + i)
-            ret_scores.append(cur_bbox_cls_pred)
+            ret_scores.append(det_prob_pred)
 
         # 4. filter some bboxes if bboxes number is above self.max_num
         if len(ret_bboxes) == 0:
@@ -348,9 +338,9 @@ class PointPillarsPollo(nn.Module):
         }
         return result
 
-    def get_predicted_bboxes(self, bbox_cls_pred, bbox_pred, bbox_dir_cls_pred, batched_anchors):
+    def get_predicted_bboxes(self, det_prob_pred, bbox_pred, batched_anchors):
         '''
-        bbox_cls_pred: (bs, n_anchors*3, 248, 216)
+        det_prob_pred: (bs, n_anchors*3, 248, 216)
         bbox_pred: (bs, n_anchors*7, 248, 216)
         bbox_dir_cls_pred: (bs, n_anchors*2, 248, 216)
         batched_anchors: (bs, y_l, x_l, 3, 2, 7)
@@ -360,11 +350,10 @@ class PointPillarsPollo(nn.Module):
             scores: [(k1, ), (k2, ), ... ]
         '''
         results = []
-        bs = bbox_cls_pred.size(0)
+        bs = det_prob_pred.size(0)
         for i in range(bs):
-            result = self.get_predicted_bboxes_single(bbox_cls_pred=bbox_cls_pred[i],
+            result = self.get_predicted_bboxes_single(det_prob_pred=det_prob_pred[i],
                                                       bbox_pred=bbox_pred[i],
-                                                      bbox_dir_cls_pred=bbox_dir_cls_pred[i],
                                                       anchors=batched_anchors[i])
             results.append(result)
         return results
@@ -388,14 +377,13 @@ class PointPillarsPollo(nn.Module):
         # x: (bs, 384, 248, 216)
         x = self.neck(xs)
 
-        # bbox_cls_pred: (bs, n_anchors*3, 248, 216)
+        # det_prob_pred: (bs, n_anchors*3, 248, 216)
         # bbox_pred: (bs, n_anchors*7, 248, 216)
-        # bbox_dir_cls_pred: (bs, n_anchors*2, 248, 216)
-        bbox_cls_pred, bbox_pred = self.head(x)
+        det_prob_pred, bbox_pred = self.head(x)
 
         # anchors
-        device = bbox_cls_pred.device
-        feature_map_size = torch.tensor(list(bbox_cls_pred.size()[-2:]), device=device)
+        device = det_prob_pred.device
+        feature_map_size = torch.tensor(list(det_prob_pred.size()[-2:]), device=device)
         anchors = self.anchors_generator.get_multi_anchors(feature_map_size)
         batched_anchors = [anchors for _ in range(batch_size)]
 
@@ -406,17 +394,16 @@ class PointPillarsPollo(nn.Module):
                                                assigners=self.assigners,
                                                nclasses=self.nclasses)
 
-            return bbox_cls_pred, bbox_pred, anchor_target_dict
+            return det_prob_pred, bbox_pred, anchor_target_dict
         elif mode == 'val':
-            results = self.get_predicted_bboxes(bbox_cls_pred=bbox_cls_pred,
+            results = self.get_predicted_bboxes(det_prob_pred=det_prob_pred,
                                                 bbox_pred=bbox_pred,
                                                 batched_anchors=batched_anchors)
             return results
 
         elif mode == 'test':
-            results = self.get_predicted_bboxes(bbox_cls_pred=bbox_cls_pred,
+            results = self.get_predicted_bboxes(det_prob_pred=det_prob_pred,
                                                 bbox_pred=bbox_pred,
-                                                bbox_dir_cls_pred=bbox_dir_cls_pred,
                                                 batched_anchors=batched_anchors)
             return results
         else:
