@@ -9,7 +9,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(BASE))
 
 from utils import read_pickle, read_points, bbox_camera2lidar
-from dataset import point_range_filter, data_augment
+from dataset import data_augment
 
 
 class BaseSampler():
@@ -35,12 +35,19 @@ class BaseSampler():
 
 
 class Apollo(Dataset):
-    def __init__(self, data_root, split):
-        assert split in ['train', 'val', 'trainval', 'test']
+    def __init__(self, data_root, split, percent = 80):
+        assert split in ['train', 'val']
         self.data_root = data_root
         self.split = split
         self.data = read_pickle(os.path.join(data_root))
         self.frame_names = list(self.data.keys())
+        split_index = int(len(self.frame_names) * float(percent)/100)
+        if self.split == 'train':
+            self.frame_names = self.frame_names[:split_index]
+        elif self.split == 'val':
+            self.frame_names = self.frame_names[split_index:]
+        self.data = {key: self.data[key] for key in self.frame_names}
+
 
         db_sampler = BaseSampler(self.frame_names, shuffle=True)
 
@@ -57,7 +64,6 @@ class Apollo(Dataset):
                 scale_ratio_range=[0.95, 1.05],
                 translation_std=[0, 0, 0]
                 ),
-            point_range_filter=[0, -39.68, -3, 69.12, 39.68, 1],    #TODO change values here for DataAug
             object_range_filter=[0, -39.68, -3, 69.12, 39.68, 1]
         )
 
@@ -76,13 +82,6 @@ class Apollo(Dataset):
             'pts': pts,
             'gt_labels': data_info['cones']
         }
-
-        #TODO come back to here and deal with it!
-
-        # if self.split in ['train', 'trainval']:
-        #     data_dict = data_augment(self.data_root, data_dict, self.data_aug_config)
-        # else:
-        #     data_dict = point_range_filter(data_dict, point_range=self.data_aug_config['point_range_filter'])
 
         return data_dict
 

@@ -232,49 +232,6 @@ def global_rot_scale_trans(data_dict, rot_range, scale_ratio_range, translation_
     return data_dict
 
 
-def point_range_filter(data_dict, point_range):
-    '''
-    data_dict: dict(pts, gt_bboxes_3d, gt_labels, gt_names, difficulty)
-    point_range: [x1, y1, z1, x2, y2, z2]
-    '''
-    pts = data_dict['pts']
-    flag_x_low = pts[:, 0] > point_range[0]
-    flag_y_low = pts[:, 1] > point_range[1]
-    flag_z_low = pts[:, 2] > point_range[2]
-    flag_x_high = pts[:, 0] < point_range[3]
-    flag_y_high = pts[:, 1] < point_range[4]
-    flag_z_high = pts[:, 2] < point_range[5]
-    keep_mask = flag_x_low & flag_y_low & flag_z_low & flag_x_high & flag_y_high & flag_z_high
-    pts = pts[keep_mask]
-    data_dict.update({'pts': pts})
-    return data_dict 
-
-
-def object_range_filter(data_dict, object_range):
-    '''
-    data_dict: dict(pts, gt_bboxes_3d, gt_labels, gt_names, difficulty)
-    point_range: [x1, y1, z1, x2, y2, z2]
-    '''
-    gt_bboxes_3d, gt_labels = data_dict['gt_bboxes_3d'], data_dict['gt_labels']
-    gt_names, difficulty = data_dict['gt_names'], data_dict['difficulty']
-
-    # bev filter
-    flag_x_low = gt_bboxes_3d[:, 0] > object_range[0]
-    flag_y_low = gt_bboxes_3d[:, 1] > object_range[1]
-    flag_x_high = gt_bboxes_3d[:, 0] < object_range[3]
-    flag_y_high = gt_bboxes_3d[:, 1] < object_range[4]
-    keep_mask = flag_x_low & flag_y_low & flag_x_high & flag_y_high
-
-    gt_bboxes_3d, gt_labels = gt_bboxes_3d[keep_mask], gt_labels[keep_mask]
-    gt_names, difficulty = gt_names[keep_mask], difficulty[keep_mask]
-    gt_bboxes_3d[:, 6] = limit_period(gt_bboxes_3d[:, 6], 0.5, 2 * np.pi)
-    data_dict.update({'gt_bboxes_3d': gt_bboxes_3d})
-    data_dict.update({'gt_labels': gt_labels})
-    data_dict.update({'gt_names': gt_names})
-    data_dict.update({'difficulty': difficulty})
-    return data_dict
-
-
 def points_shuffle(data_dict):
     '''
     data_dict: dict(pts, gt_bboxes_3d, gt_labels, gt_names, difficulty)
