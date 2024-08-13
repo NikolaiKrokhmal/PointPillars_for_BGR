@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 class LossPollo(nn.Module):
-    def __init__(self, beta=1 / 9, det_w=1.0, reg_w=2.0):
+    def __init__(self, beta=1 / 9, det_w=1.0, reg_w=20.0):
         super().__init__()
         self.det_w = det_w
         self.reg_w = reg_w

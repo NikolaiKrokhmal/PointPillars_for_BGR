@@ -35,7 +35,7 @@ class BaseSampler():
 
 
 class Apollo(Dataset):
-    def __init__(self, data_root, split, percent = 80):
+    def __init__(self, data_root, split, percent=90):
         assert split in ['train', 'val']
         self.data_root = data_root
         self.split = split
