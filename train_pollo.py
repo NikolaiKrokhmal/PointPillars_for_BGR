@@ -133,7 +133,7 @@ def main(args):
             continue
         pointpillars.eval()
         with torch.no_grad():
-            for i, data_dict in enumerate(tqdm(train_dataloader)):
+            for i, data_dict in enumerate(tqdm(val_dataloader)):
                 if not args.no_cuda:
                     # move the tensors to the cuda
                     for key in data_dict:
@@ -147,7 +147,7 @@ def main(args):
                 batched_gt_bboxes = data_dict['batched_gt_bboxes']
                 # list of samples with classes (here only one class)
                 batched_labels = data_dict['batched_labels']
-                bbox_cls_pred, bbox_pred, anchor_target_dict = \
+                det_prob_pred, bbox_pred, anchor_target_dict = \
                     pointpillars(batched_pts=batched_pts,
                                  mode='train',
                                  batched_gt_bboxes=batched_gt_bboxes,
@@ -175,12 +175,10 @@ def main(args):
                                       batched_obj_presence=batched_bbox_labels,
                                       batched_loc_reg=batched_bbox_reg, )
 
-                global_step = epoch * len(train_dataloader) + train_step + 1
+                global_step = epoch * len(val_dataloader) + val_step + 1
 
                 if global_step % args.log_freq == 0:
-                    save_summary(writer, loss_dict, global_step, 'val',
-                                 lr=optimizer.param_groups[0]['lr'],
-                                 momentum=optimizer.param_groups[0]['betas'][0])
+                    save_summary(writer, loss_dict, global_step, 'val')
                 val_step += 1
         pointpillars.train()
 
