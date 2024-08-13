@@ -1,4 +1,4 @@
-from .io import read_pickle, write_pickle, read_points, write_points, read_calib, \
+from .io_pollo import read_pickle, write_pickle, read_points, write_points, read_calib, \
     read_label, write_label
 from .process import bbox_camera2lidar, bbox3d2bevcorners, box_collision_test, \
     remove_pts_in_bboxes, limit_period, bbox3d2corners, points_lidar2image, \

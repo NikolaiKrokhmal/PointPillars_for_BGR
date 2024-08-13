@@ -255,10 +255,8 @@ class PointPillarsPollo(nn.Module):
         ]
 
         # val and test
-        self.nms_pre = 100
-        self.nms_thr = 0.01
+        self.max_det = 40
         self.score_thr = 0.1
-        self.max_num = 50
 
     def get_predicted_bboxes_single(self, det_prob_pred, bbox_pred, anchors):
         """
@@ -273,11 +271,18 @@ class PointPillarsPollo(nn.Module):
         """
         # 0. pre-process
         det_prob_pred = det_prob_pred.permute(1, 2, 0).reshape(-1, self.nclasses)
-        bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 7)
+        bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 2)
         anchors = anchors.reshape(-1, 7)
 
         # 1. obtain self.nms_pre bboxes based on scores
-        inds = det_prob_pred.max(1)[0].topk(self.nms_pre)[1]
+        inds = det_prob_pred.max(1)[0].topk(self.max_det)[1]
+        det_score = det_prob_pred.max(1)[0].topk(self.max_det)[0]
+        det_mask = det_score > self.score_thr
+        if det_mask.sum().item() == 0:
+            result = {'lidar_bboxes': None, 'scores': None}
+            return result
+        inds = inds[det_mask]
+        det_score = det_score[det_mask]
         det_prob_pred = det_prob_pred[inds]
         bbox_pred = bbox_pred[inds]
         anchors = anchors[inds]
@@ -285,56 +290,9 @@ class PointPillarsPollo(nn.Module):
         # 2. decode predicted offsets to bboxes
         bbox_pred = anchors2bboxes(anchors, bbox_pred)
 
-        # 3. nms
-        bbox_pred2d_xy = bbox_pred[:, [0, 1]]
-        bbox_pred2d_lw = bbox_pred[:, [3, 4]]
-        bbox_pred2d = torch.cat([bbox_pred2d_xy - bbox_pred2d_lw / 2,
-                                 bbox_pred2d_xy + bbox_pred2d_lw / 2,
-                                 bbox_pred[:, 6:]], dim=-1)  # (n_anchors, 5)
-
-        ret_bboxes, ret_labels, ret_scores = [], [], []
-        for i in range(self.nclasses):
-            # 3.1 filter bboxes with scores below self.score_thr
-            det_prob_pred = det_prob_pred[:, i]
-            score_inds = det_prob_pred > self.score_thr
-            if score_inds.sum() == 0:
-                continue
-
-            det_prob_pred = det_prob_pred[score_inds]
-            cur_bbox_pred2d = bbox_pred2d[score_inds]
-            cur_bbox_pred = bbox_pred[score_inds]
-
-            # 3.2 nms core
-            keep_inds = nms_cuda(boxes=cur_bbox_pred2d,
-                                 scores=det_prob_pred,
-                                 thresh=self.nms_thr,
-                                 pre_maxsize=None,
-                                 post_max_size=None)
-
-            det_prob_pred = det_prob_pred[keep_inds]
-            cur_bbox_pred = cur_bbox_pred[keep_inds]
-            cur_bbox_pred[:, -1] = limit_period(cur_bbox_pred[:, -1].detach().cpu(), 1, np.pi).to(
-                cur_bbox_pred)  # [-pi, 0]
-
-            ret_bboxes.append(cur_bbox_pred)
-            ret_labels.append(torch.zeros_like(cur_bbox_pred[:, 0], dtype=torch.long) + i)
-            ret_scores.append(det_prob_pred)
-
-        # 4. filter some bboxes if bboxes number is above self.max_num
-        if len(ret_bboxes) == 0:
-            return [], [], []
-        ret_bboxes = torch.cat(ret_bboxes, 0)
-        ret_labels = torch.cat(ret_labels, 0)
-        ret_scores = torch.cat(ret_scores, 0)
-        if ret_bboxes.size(0) > self.max_num:
-            final_inds = ret_scores.topk(self.max_num)[1]
-            ret_bboxes = ret_bboxes[final_inds]
-            ret_labels = ret_labels[final_inds]
-            ret_scores = ret_scores[final_inds]
         result = {
-            'lidar_bboxes': ret_bboxes.detach().cpu().numpy(),
-            'labels': ret_labels.detach().cpu().numpy(),
-            'scores': ret_scores.detach().cpu().numpy()
+            'lidar_bboxes': bbox_pred.detach().cpu().numpy(),
+            'scores': det_prob_pred.detach().cpu().numpy()
         }
         return result
 

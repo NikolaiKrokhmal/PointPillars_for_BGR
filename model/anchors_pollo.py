@@ -70,18 +70,15 @@ def anchors2bboxes(anchors, deltas):
     deltas: (M, 7)
     return: (M, 7)
     """
-    da = torch.sqrt(anchors[:, 3] ** 2 + anchors[:, 4] ** 2)
-    x = deltas[:, 0] * da + anchors[:, 0]
-    y = deltas[:, 1] * da + anchors[:, 1]
-    z = deltas[:, 2] * anchors[:, 5] + anchors[:, 2] + anchors[:, 5] / 2
+    da = 1
+    x = anchors[:, 0] + deltas[:, 0] * da
+    y = anchors[:, 1] + deltas[:, 1] * da
 
-    w = anchors[:, 3] * torch.exp(deltas[:, 3])
-    l = anchors[:, 4] * torch.exp(deltas[:, 4])
-    h = anchors[:, 5] * torch.exp(deltas[:, 5])
-
-    z = z - h / 2
-
-    theta = anchors[:, 6] + deltas[:, 6]
+    w = 0.4
+    l = 0.4
+    h = 3
+    z = 0.5
+    theta = 0
 
     bboxes = torch.stack([x, y, z, w, l, h, theta], dim=1)
     return bboxes
@@ -154,8 +151,15 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
             label_mat[mask_out] = -2
             assigned_gt_labels = torch.amax(label_mat, 0).long()
 
+            # apply negative hard mining
+            negative_two_indices = torch.where(assigned_gt_labels == -2)[0]
+            neg_hard_amount = mask_in.sum()*2
+            rand_idx = torch.randperm(len(negative_two_indices), device=dist_mat.device)
+            rand_idx = rand_idx[: neg_hard_amount]
+
             # change label values to stick to conventions
-            assigned_gt_labels[assigned_gt_labels == -2] = 0  # change negative labels to 0
+            assigned_gt_labels[rand_idx] = 0  # change negative labels to 0
+            assigned_gt_labels[assigned_gt_labels == -2] = -1  # the rest are don't care
 
             # create label weights
             assigned_gt_labels_weights = torch.zeros_like(assigned_gt_labels)

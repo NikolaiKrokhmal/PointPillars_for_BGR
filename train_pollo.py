@@ -129,7 +129,7 @@ def main(args):
         if (epoch + 1) % args.ckpt_freq_epoch == 0:
             torch.save(pointpillars.state_dict(), os.path.join(saved_ckpt_path, f'epoch_{epoch + 1}.pth'))
 
-        if epoch % 1 == 0:
+        if epoch % 2 == 0:
             continue
         pointpillars.eval()
         with torch.no_grad():
@@ -149,7 +149,7 @@ def main(args):
                 batched_labels = data_dict['batched_labels']
                 bbox_cls_pred, bbox_pred, anchor_target_dict = \
                     pointpillars(batched_pts=batched_pts,
-                                 mode='val',
+                                 mode='train',
                                  batched_gt_bboxes=batched_gt_bboxes,
                                  batched_gt_labels=batched_labels)
 
@@ -187,16 +187,16 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
-    parser.add_argument('--data_root', default='../../Data-ApolloScape/PCD_MAP.pkl',
+    parser.add_argument('--data_root', default='../Data-ApolloScape/PCD_MAP.pkl',
                         help='your data root for kitti')
     parser.add_argument('--saved_path', default='pillar_logs')
     parser.add_argument('--batch_size', type=int, default=6)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--nclasses', type=int, default=1)
     parser.add_argument('--init_lr', type=float, default=0.00025)
-    parser.add_argument('--max_epoch', type=int, default=160)
-    parser.add_argument('--log_freq', type=int, default=8)
-    parser.add_argument('--ckpt_freq_epoch', type=int, default=20)
+    parser.add_argument('--max_epoch', type=int, default=3)
+    parser.add_argument('--log_freq', type=int, default=2)
+    parser.add_argument('--ckpt_freq_epoch', type=int, default=2)
     parser.add_argument('--no_cuda', action='store_true',
                         help='whether to use cuda')
     run_args = parser.parse_args()
