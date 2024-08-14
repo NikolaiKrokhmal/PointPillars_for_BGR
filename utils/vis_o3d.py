@@ -120,3 +120,46 @@ def vis_img_3d(img, image_points, labels, rt=True):
         return img
     cv2.imshow('bbox', img)
     cv2.waitKey(0)
+
+
+def visualize_lidar_with_boxes(points, boxes, labels):
+    """
+    Visualize LiDAR point cloud with 3D bounding boxes and labels.
+
+    :param points: numpy array of shape (N, 3) for N points with x, y, z coordinates
+    :param boxes: list of numpy arrays, each of shape (8, 3) representing 8 corners of a 3D box
+    :param labels: list of string labels corresponding to each box
+    """
+    # Create Open3D point cloud object
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+
+    # Create a list to store all geometries
+    geometries = [pcd]
+
+    # Create line sets for boxes
+    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 0, 1], [0, 1, 1]]
+    lines = [[0, 1], [1, 2], [2, 3], [3, 0],
+             [4, 5], [5, 6], [6, 7], [7, 4],
+             [0, 4], [1, 5], [2, 6], [3, 7]]
+
+    for i, box in enumerate(boxes):
+        center = box[:3]
+        extent = box[3:6]
+        R = o3d.geometry.get_rotation_matrix_from_xyz((0, 0, box[6]))
+
+        box_geometry = o3d.geometry.OrientedBoundingBox(center, R, extent)
+        box_geometry.color = colors[i % len(colors)]
+        geometries.append(box_geometry)
+
+        # Add label
+        # label_pos = box.mean(axis=0)
+        # label_geometry = o3d.geometry.Text3D()
+        # label_geometry.text = labels[i]
+        # label_geometry.position = label_pos
+        # label_geometry.font_size = 0.5
+        # label_geometry.color = colors[i % len(colors)]
+        # geometries.append(label_geometry)
+
+    # Visualize
+    o3d.visualization.draw_geometries(geometries)

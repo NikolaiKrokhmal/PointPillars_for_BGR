@@ -70,15 +70,16 @@ def anchors2bboxes(anchors, deltas):
     deltas: (M, 7)
     return: (M, 7)
     """
+    pred_num = len(anchors)
     da = 1
     x = anchors[:, 0] + deltas[:, 0] * da
     y = anchors[:, 1] + deltas[:, 1] * da
 
-    w = 0.4
-    l = 0.4
-    h = 3
-    z = 0.5
-    theta = 0
+    w = torch.ones(pred_num, device=x.device) * 0.4
+    l = torch.ones(pred_num, device=x.device) * 0.4
+    h = torch.ones(pred_num, device=x.device) * 3
+    z = torch.ones(pred_num, device=x.device) * -0.5
+    theta = torch.ones(pred_num, device=x.device) * 0
 
     bboxes = torch.stack([x, y, z, w, l, h, theta], dim=1)
     return bboxes
@@ -153,7 +154,7 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
 
             # apply negative hard mining
             negative_two_indices = torch.where(assigned_gt_labels == -2)[0]
-            neg_hard_amount = mask_in.sum()*2
+            neg_hard_amount = mask_in.sum()
             rand_idx = torch.randperm(len(negative_two_indices), device=dist_mat.device)
             rand_idx = rand_idx[: neg_hard_amount]
 

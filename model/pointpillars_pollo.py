@@ -256,7 +256,7 @@ class PointPillarsPollo(nn.Module):
 
         # val and test
         self.max_det = 40
-        self.score_thr = 0.1
+        self.score_thr = 0.95
 
     def get_predicted_bboxes_single(self, det_prob_pred, bbox_pred, anchors):
         """
@@ -282,10 +282,9 @@ class PointPillarsPollo(nn.Module):
             result = {'lidar_bboxes': None, 'scores': None}
             return result
         inds = inds[det_mask]
-        det_score = det_score[det_mask]
         det_prob_pred = det_prob_pred[inds]
-        bbox_pred = bbox_pred[inds]
-        anchors = anchors[inds]
+        bbox_pred = bbox_pred[inds, :]
+        anchors = anchors[inds, :]
 
         # 2. decode predicted offsets to bboxes
         bbox_pred = anchors2bboxes(anchors, bbox_pred)

@@ -8,7 +8,7 @@ import pdb
 from utils import setup_seed, read_points, read_calib, read_label, \
     keep_bbox_from_image_range, keep_bbox_from_lidar_range, vis_pc, \
     vis_img_3d, bbox3d2corners_camera, points_camera2image, \
-    bbox_camera2lidar
+    bbox_camera2lidar, visualize_lidar_with_boxes
 from model import PointPillarsPollo
 
 
@@ -62,11 +62,8 @@ def main(args):
         result_filter = model(batched_pts=[pc_torch],
                               mode='test')[0]
 
-    result_filter = keep_bbox_from_lidar_range(result_filter, pcd_limit_range)
     lidar_bboxes = result_filter['lidar_bboxes']
-    labels, scores = result_filter['labels'], result_filter['scores']
-
-    vis_pc(pc, bboxes=lidar_bboxes, labels=labels)
+    visualize_lidar_with_boxes(pc, lidar_bboxes, labels=0)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
