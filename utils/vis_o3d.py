@@ -1,166 +1,77 @@
-import cv2
+# from utils import bbox3d2corners
+
 import numpy as np
 import open3d as o3d
-import os
-from utils import bbox3d2corners
-# import pptk
-
 
 COLORS = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0]]
-COLORS_IMG = [[0, 0, 255], [0, 255, 0], [255, 0, 0], [0, 255, 255]]
 
 LINES = [
-        [0, 1],
-        [1, 2], 
-        [2, 3],
-        [3, 0],
-        [4, 5],
-        [5, 6],
-        [6, 7],
-        [7, 4],
-        [2, 6],
-        [7, 3],
-        [1, 5],
-        [4, 0]
-    ]
-
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [2, 6], [7, 3], [1, 5], [4, 0]
+]
 
 def npy2ply(npy):
     ply = o3d.geometry.PointCloud()
     ply.points = o3d.utility.Vector3dVector(npy[:, :3])
-    density = npy[:, 3]
-    colors = [[item, item, item] for item in density]
-    ply.colors = o3d.utility.Vector3dVector(colors)
+    if npy.shape[1] > 3:
+        density = npy[:, 3]
+        colors = [[item, item, item] for item in density]
+        ply.colors = o3d.utility.Vector3dVector(colors)
     return ply
 
-
-def ply2npy(ply):
-    return np.array(ply.points)
-
-
 def bbox_obj(points, color=[1, 0, 0]):
-    colors = [color for i in range(len(LINES))]
     line_set = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(points),
         lines=o3d.utility.Vector2iVector(LINES),
     )
-    line_set.colors = o3d.utility.Vector3dVector(colors)
+    line_set.colors = o3d.utility.Vector3dVector([color for _ in LINES])
     return line_set
 
+def bbox3d2corners(bboxes):
+    centers, dims, angles = bboxes[:, :3], bboxes[:, 3:6], bboxes[:, 6]
+    bboxes_corners = np.array([[-0.5, -0.5, 0], [-0.5, -0.5, 1.0], [-0.5, 0.5, 1.0], [-0.5, 0.5, 0.0],
+                               [0.5, -0.5, 0], [0.5, -0.5, 1.0], [0.5, 0.5, 1.0], [0.5, 0.5, 0.0]],
+                              dtype=np.float32)
+    bboxes_corners = bboxes_corners[None, :, :] * dims[:, None, :]
+    rot_sin, rot_cos = np.sin(angles), np.cos(angles)
+    rot_mat = np.array([[rot_cos, rot_sin, np.zeros_like(rot_cos)],
+                        [-rot_sin, rot_cos, np.zeros_like(rot_cos)],
+                        [np.zeros_like(rot_cos), np.zeros_like(rot_cos), np.ones_like(rot_cos)]],
+                       dtype=np.float32)
+    rot_mat = np.transpose(rot_mat, (2, 1, 0))
+    bboxes_corners = bboxes_corners @ rot_mat
+    bboxes_corners += centers[:, None, :]
+    return bboxes_corners
 
-def vis_core(plys):
+def vis_PC(pc, bbox=None, bbox_real=None):
     vis = o3d.visualization.Visualizer()
     vis.create_window()
 
-    PAR = os.path.dirname(os.path.abspath(__file__))
-    ctr = vis.get_view_control()
-    param = o3d.io.read_pinhole_camera_parameters(os.path.join(PAR, 'viewpoint.json'))
-    for ply in plys:
-        vis.add_geometry(ply)
-    ctr.convert_from_pinhole_camera_parameters(param)
+    point_cloud = npy2ply(pc)
+    vis.add_geometry(point_cloud)
+
+    if bbox is not None:
+        bbox_corners = bbox3d2corners(np.array([bbox + [0]]))  # Add a dummy angle
+        bbox_lines = bbox_obj(bbox_corners[0], color=[1, 0, 0])
+        vis.add_geometry(bbox_lines)
+
+    if bbox_real is not None:
+        bbox_real_corners = bbox3d2corners(np.array([bbox_real + [0]]))  # Add a dummy angle
+        bbox_real_lines = bbox_obj(bbox_real_corners[0], color=[0, 1, 0])
+        vis.add_geometry(bbox_real_lines)
+
+    mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+    vis.add_geometry(mesh_frame)
+
+    vis.get_render_option().point_size = 1
+    vis.get_render_option().background_color = np.asarray([0, 0, 0])
 
     vis.run()
-    # param = vis.get_view_control().convert_to_pinhole_camera_parameters()
-    # o3d.io.write_pinhole_camera_parameters(os.path.join(PAR, 'viewpoint.json'), param)
     vis.destroy_window()
 
-
-def vis_pc(pc, bboxes=None, labels=None):
-    '''
-    pc: ply or np.ndarray (N, 4)
-    bboxes: np.ndarray, (n, 7) or (n, 8, 3)
-    labels: (n, )
-    '''
-    if isinstance(pc, np.ndarray):
-        pc = npy2ply(pc)
-    
-    mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
-    size=10, origin=[0, 0, 0])
-
-    if bboxes is None:
-        vis_core([pc, mesh_frame])
-        return
-    
-    if len(bboxes.shape) == 2:
-        bboxes = bbox3d2corners(bboxes)
-    
-    vis_objs = [pc, mesh_frame]
-    for i in range(len(bboxes)):
-        bbox = bboxes[i]
-        if labels is None:
-            color = [1, 1, 0]
-        else:
-            if labels[i] >= 0 and labels[i] < 3:
-                color = COLORS[labels[i]]
-            else:
-                color = COLORS[-1]
-        vis_objs.append(bbox_obj(bbox, color=color))
-    vis_core(vis_objs)
-
-
-def vis_img_3d(img, image_points, labels, rt=True):
-    '''
-    img: (h, w, 3)
-    image_points: (n, 8, 2)
-    labels: (n, )
-    '''
-
-    for i in range(len(image_points)):
-        label = labels[i]
-        bbox_points = image_points[i] # (8, 2)
-        if label >= 0 and label < 3:
-            color = COLORS_IMG[label]
-        else:
-            color = COLORS_IMG[-1]
-        for line_id in LINES:
-            x1, y1 = bbox_points[line_id[0]]
-            x2, y2 = bbox_points[line_id[1]]
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-            cv2.line(img, (x1, y1), (x2, y2), color, 1)
-    if rt:
-        return img
-    cv2.imshow('bbox', img)
-    cv2.waitKey(0)
-
-
-def visualize_lidar_with_boxes(points, boxes, real_boxes):
-    """
-    Visualize LiDAR point cloud with 3D bounding boxes and labels.
-
-    :param points: numpy array of shape (N, 3) for N points with x, y, z coordinates
-    :param boxes: list of numpy arrays, each of shape (8, 3) representing 8 corners of a 3D box
-    :param labels: list of string labels corresponding to each box
-    """
-    # Create Open3D point cloud object
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-
-    # Create a list to store all geometries
-    geometries = [pcd]
-
-    # Create line sets for boxes
-    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 0, 1], [0, 1, 1]]
-    lines = [[0, 1], [1, 2], [2, 3], [3, 0],
-             [4, 5], [5, 6], [6, 7], [7, 4],
-             [0, 4], [1, 5], [2, 6], [3, 7]]
-
-    for i, box in enumerate(boxes):
-        center = box[:3]
-        extent = box[3:6]
-        R = o3d.geometry.get_rotation_matrix_from_xyz((0, 0, box[6]))
-
-        box_geometry = o3d.geometry.OrientedBoundingBox(center, R, extent)
-        box_geometry.color = colors[i % len(colors)]
-        geometries.append(box_geometry)
-
-        # Add label
-        # label_pos = box.mean(axis=0)
-        # label_geometry = o3d.geometry.Text3D()
-        # label_geometry.text = labels[i]
-        # label_geometry.position = label_pos
-        # label_geometry.font_size = 0.5
-        # label_geometry.color = colors[i % len(colors)]
-        # geometries.append(label_geometry)
-
-    # Visualize
-    o3d.visualization.draw_geometries(geometries)
+# Usage
+# pc = np.random.rand(1000, 3)  # Replace with your actual point cloud data
+# bbox = np.array([0, 0, 0, 1, 1, 1])  # Replace with your actual bbox data
+# bbox_real = np.array([0, 0, 0, 2, 2, 2])  # Replace with your actual bbox_real data
+# vis_PC(pc, bbox, bbox_real)

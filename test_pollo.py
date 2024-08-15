@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 from utils import setup_seed, read_points, read_pickle,shuffle_pickle,  read_calib, read_label, \
     keep_bbox_from_image_range, keep_bbox_from_lidar_range, vis_pc, \
-    vis_img_3d, bbox3d2corners_camera, points_camera2image, \
-    bbox_camera2lidar, visualize_lidar_with_boxes
+     bbox3d2corners_camera, points_camera2image, \
+    bbox_camera2lidar
 from model import PointPillarsPollo
 
 
@@ -69,7 +69,7 @@ def main(args):
     lidar_bboxes = result_filter['lidar_bboxes']
     real_bbox = dict2numpy(frame['cones'], lidar_bboxes[0, 2:])
 
-    # visualize_lidar_with_boxes(pc, lidar_bboxes, real_bbox)
+    vis_pc(pc, lidar_bboxes, real_bbox)
     print(f"frame time is: {frame_time}")
 
 if __name__ == '__main__':
