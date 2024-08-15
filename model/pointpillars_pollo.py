@@ -219,7 +219,7 @@ class Head(nn.Module):
 class PointPillarsPollo(nn.Module):
     def __init__(self,
                  nclasses=1,
-                 voxel_size=(0.2, 0.2, 3),
+                 voxel_size=(0.2, 0.2, 3),  #(0.2, 0.2, 3)
                  point_cloud_range=(-40, -40, -2, 40, 40, 1), #(0, -4.8, -2, 80, 4.8, 1)
                  max_num_points=32,
                  max_voxels=(16000, 40000)):

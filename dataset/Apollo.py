@@ -39,7 +39,7 @@ class Apollo(Dataset):
         assert split in ['train', 'val']
         self.data_root = data_root
         self.split = split
-        self.data = read_pickle(os.path.join(data_root))
+        self.data = data_root #read_pickle(os.path.join(data_root))
         self.frame_names = list(self.data.keys())
         split_index = int(len(self.frame_names) * float(percent)/100)
         if self.split == 'train':

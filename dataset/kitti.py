@@ -126,6 +126,9 @@ class Kitti(Dataset):
             'image_info': image_info,
             'calib_info': calib_info
         }
+
+
+
         if self.split in ['train', 'trainval']:
             data_dict = data_augment(self.CLASSES, self.data_root, data_dict, self.data_aug_config)
         else:

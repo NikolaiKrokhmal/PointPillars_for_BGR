@@ -3,7 +3,7 @@ import os
 import torch
 from tqdm import tqdm
 
-from utils import setup_seed
+from utils import setup_seed, shuffle_pickle
 from dataset import Apollo, get_dataloader
 from model import PointPillarsPollo
 from loss import LossPollo
@@ -24,9 +24,11 @@ def save_summary(writer, loss_dict, global_step, tag, lr=None, momentum=None):
 
 def main(args):
     setup_seed()
-    train_dataset = Apollo(data_root=args.data_root,
+    pickle = shuffle_pickle(args.data_root, shuffle=True)
+    # pickle = args.data_root
+    train_dataset = Apollo(data_root=pickle,
                           split='train')
-    val_dataset = Apollo(data_root=args.data_root,
+    val_dataset = Apollo(data_root=pickle,
                         split='val')
     train_dataloader = get_dataloader(dataset=train_dataset,
                                       batch_size=args.batch_size,
@@ -48,17 +50,17 @@ def main(args):
     init_lr = args.init_lr
     optimizer = torch.optim.AdamW(params=pointpillars.parameters(),
                                   lr=init_lr,
-                                  betas=(0.95, 0.99),
+                                  betas=(0.9, 0.999),  # Changed from (0.95, 0.99)
                                   weight_decay=0.01)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
-                                                    max_lr=init_lr * 10,
+                                                    max_lr=init_lr * 5,  # Changed from 10 to 5
                                                     total_steps=max_iters,
-                                                    pct_start=0.4,
+                                                    pct_start=0.3,  # Changed from 0.4
                                                     anneal_strategy='cos',
                                                     cycle_momentum=True,
-                                                    base_momentum=0.95 * 0.895,
+                                                    base_momentum=0.85,  # Changed from 0.95 * 0.895
                                                     max_momentum=0.95,
-                                                    div_factor=10)
+                                                    div_factor=25)  # Changed from 10
 
     saved_logs_path = os.path.join(args.saved_path, 'summary')
     os.makedirs(saved_logs_path, exist_ok=True)
@@ -185,11 +187,11 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
-    parser.add_argument('--data_root', default='../Data-ApolloScape/PCD_MAP.pkl',
+    parser.add_argument('--data_root', default='../../Data-ApolloScape/PCD_MAP.pkl',
                         help='your data root for kitti')
     parser.add_argument('--saved_path', default='pillar_logs')
-    parser.add_argument('--batch_size', type=int, default=10)
-    parser.add_argument('--num_workers', type=int, default=4)
+    parser.add_argument('--batch_size', type=int, default=3)
+    parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--nclasses', type=int, default=1)
     parser.add_argument('--init_lr', type=float, default=0.00025)
     parser.add_argument('--max_epoch', type=int, default=60)

@@ -1,8 +1,18 @@
+import random
+
 import numpy as np
 import os
 import pickle
 import open3d as o3d
 
+
+def shuffle_pickle(file_path, shuffle = True):
+    dict = read_pickle(file_path)
+    if shuffle:
+        keys = list(dict.keys())
+        random.shuffle(keys)
+        dict = {key: dict[key] for key in keys}
+    return dict
 def read_pickle(file_path, suffix='.pkl'):
     assert os.path.splitext(file_path)[1] == suffix
     with open(file_path, 'rb') as f:
