@@ -3,6 +3,7 @@ import numpy as np
 import open3d as o3d
 import os
 from utils import bbox3d2corners
+# import pptk
 
 
 COLORS = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0]]
@@ -122,7 +123,7 @@ def vis_img_3d(img, image_points, labels, rt=True):
     cv2.waitKey(0)
 
 
-def visualize_lidar_with_boxes(points, boxes, labels):
+def visualize_lidar_with_boxes(points, boxes, real_boxes):
     """
     Visualize LiDAR point cloud with 3D bounding boxes and labels.
 
