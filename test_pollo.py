@@ -67,14 +67,16 @@ def main(args):
         frame_time = end_time - start_time
         print(frame_time)
     lidar_bboxes = result_filter['lidar_bboxes']
+    lidar_bboxes[:, 2] = sum(cone['location'][2] for cone in frame['cones'].values()) / len(frame['cones'])
     real_bbox = dict2numpy(frame['cones'], lidar_bboxes[0, 2:])
+    print(f"predicted cones: {len(lidar_bboxes)}, real cones: {len(real_bbox)}")
 
     vis_pc(pc, lidar_bboxes, real_bbox)
     print(f"frame time is: {frame_time}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
-    parser.add_argument('--ckpt', default='./pillar_logs/checkpoints/epoch_60.pth')
+    parser.add_argument('--ckpt', default='./pillar_logs/checkpoints/epoch_60.pth') #'./logs_backup/epoch_60_niko.pth'
     parser.add_argument('--pc_path', default='../../Data-ApolloScape/PCD_MAP.pkl')
     parser.add_argument('--no_cuda', action='store_true', help='whether to use cuda')
     args = parser.parse_args()

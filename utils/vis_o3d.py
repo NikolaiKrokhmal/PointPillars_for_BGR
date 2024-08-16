@@ -51,6 +51,11 @@ def vis_pc(pc, bbox=None, bbox_real=None):
 
     vis.get_render_option().point_size = 1
     vis.get_render_option().background_color = np.asarray([0, 0, 0])
+    # Set the viewpoint AFTER the window is created
+    vis.get_view_control().set_front([0, 0, 1])
+    vis.get_view_control().set_lookat([0, 0, 0])
+    vis.get_view_control().set_up([0, 1, 0])
+    vis.get_view_control().set_zoom(0.5)
 
     vis.run()
     # vis.destroy_window()
