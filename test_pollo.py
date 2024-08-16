@@ -57,7 +57,7 @@ def main(args):
 
     scores = []
 
-    for key in pickle:
+    for key in tqdm(pickle.keys()):
         frame = pickle[key]
         pc = read_points(frame['path'])
         pc = point_range_filter(pc)
@@ -73,18 +73,19 @@ def main(args):
             end_time = time.time()  ###############################################
             frame_time = end_time - start_time
         lidar_bboxes = result_filter['lidar_bboxes']
+        # if lidar_bboxes is None:
+        #     scores.append(
+        #         [key, pc, np.zeros(1), dict2numpy(frame['cones'], np.array([-0.5, 0.4, 0.4, 3., 0.])), 0, 0, 0])
         if lidar_bboxes is not None:
             lidar_bboxes[:, 2] = sum(cone['location'][2] for cone in frame['cones'].values()) / len(frame['cones'])
             real_bbox = dict2numpy(frame['cones'], lidar_bboxes[0, 2:])
-        print(f"predicted cones: {len(lidar_bboxes)}, real cones: {len(real_bbox)}, frame: {next(iter(pickle))}, score median: {np.median(result_filter['scores'])}, score mean: {result_filter['scores'].mean()}")
-        if lidar_bboxes is not None:
-            prediction, recall, f1 = F1Score(lidar_bboxes, real_bbox, next(iter(pickle))) if lidar_bboxes is not None else 0,0,0
-        print(f"frame time is: {frame_time}")
-        print(f"prediction: {prediction}, recall: {recall}, f1: {f1}\n")
-        vis_pc(pc, lidar_bboxes, real_bbox)
-        scores.append([key, pc, lidar_bboxes, real_bbox, prediction, recall, f1])
-    scores.sort(key=lambda x: x[-1])
-    k=3
+            prediction, recall, f1 = F1Score(lidar_bboxes, real_bbox, next(iter(pickle)))
+            if f1 > 70:
+                scores.append([key, frame_time, pc, lidar_bboxes, real_bbox, prediction, recall, f1])
+                print(f"predicted cones: {len(lidar_bboxes)}, real cones: {len(real_bbox)}, frame: {next(iter(pickle))}, score median: {np.median(result_filter['scores'])}, score mean: {result_filter['scores'].mean()}")
+                print(f"frame time is: {frame_time}")
+                print(f"prediction: {prediction}, recall: {recall}, f1: {f1}\n")
+                vis_pc(pc, lidar_bboxes, real_bbox)
 
 
 if __name__ == '__main__':
