@@ -4,7 +4,7 @@ import numpy as np
 import random
 import torch
 import pdb
-from ops.iou3d_module import boxes_overlap_bev, boxes_iou_bev
+# from ops.iou3d_module import boxes_overlap_bev, boxes_iou_bev
 
 
 def setup_seed(seed=0, deterministic = True):
@@ -155,7 +155,7 @@ def bbox3d2corners(bboxes):
                         [-rot_sin, rot_cos, np.zeros_like(rot_cos)],
                         [np.zeros_like(rot_cos), np.zeros_like(rot_cos), np.ones_like(rot_cos)]], 
                         dtype=np.float32) # (3, 3, n)
-    rot_mat = np.transpose(rot_mat, (2, 1, 0)) # (n, 3, 3)
+    rot_mat = np.transpose(rot_mat, (2, 1, 0)) # (n, 3, 3)3
     bboxes_corners = bboxes_corners @ rot_mat # (n, 8, 3)
 
     # 3. translate to centers

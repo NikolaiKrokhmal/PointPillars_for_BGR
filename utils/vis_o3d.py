@@ -1,7 +1,6 @@
-# from utils import bbox3d2corners
-
 import numpy as np
 import open3d as o3d
+from utils import bbox3d2corners
 
 COLORS = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0]]
 
@@ -28,23 +27,7 @@ def bbox_obj(points, color=[1, 0, 0]):
     line_set.colors = o3d.utility.Vector3dVector([color for _ in LINES])
     return line_set
 
-def bbox3d2corners(bboxes):
-    centers, dims, angles = bboxes[:, :3], bboxes[:, 3:6], bboxes[:, 6]
-    bboxes_corners = np.array([[-0.5, -0.5, 0], [-0.5, -0.5, 1.0], [-0.5, 0.5, 1.0], [-0.5, 0.5, 0.0],
-                               [0.5, -0.5, 0], [0.5, -0.5, 1.0], [0.5, 0.5, 1.0], [0.5, 0.5, 0.0]],
-                              dtype=np.float32)
-    bboxes_corners = bboxes_corners[None, :, :] * dims[:, None, :]
-    rot_sin, rot_cos = np.sin(angles), np.cos(angles)
-    rot_mat = np.array([[rot_cos, rot_sin, np.zeros_like(rot_cos)],
-                        [-rot_sin, rot_cos, np.zeros_like(rot_cos)],
-                        [np.zeros_like(rot_cos), np.zeros_like(rot_cos), np.ones_like(rot_cos)]],
-                       dtype=np.float32)
-    rot_mat = np.transpose(rot_mat, (2, 1, 0))
-    bboxes_corners = bboxes_corners @ rot_mat
-    bboxes_corners += centers[:, None, :]
-    return bboxes_corners
-
-def vis_PC(pc, bbox=None, bbox_real=None):
+def vis_pc(pc, bbox=None, bbox_real=None):
     vis = o3d.visualization.Visualizer()
     vis.create_window()
 
@@ -52,14 +35,16 @@ def vis_PC(pc, bbox=None, bbox_real=None):
     vis.add_geometry(point_cloud)
 
     if bbox is not None:
-        bbox_corners = bbox3d2corners(np.array([bbox + [0]]))  # Add a dummy angle
-        bbox_lines = bbox_obj(bbox_corners[0], color=[1, 0, 0])
-        vis.add_geometry(bbox_lines)
+        bbox_corners = bbox3d2corners(bbox)  # Add a dummy angle
+        for box in bbox_corners:
+            bbox_lines = bbox_obj(box, color=[1, 0, 0])             #Red
+            vis.add_geometry(bbox_lines)
 
     if bbox_real is not None:
-        bbox_real_corners = bbox3d2corners(np.array([bbox_real + [0]]))  # Add a dummy angle
-        bbox_real_lines = bbox_obj(bbox_real_corners[0], color=[0, 1, 0])
-        vis.add_geometry(bbox_real_lines)
+        bbox_real_corners = bbox3d2corners(bbox_real)  # Add a dummy angle
+        for box in bbox_real_corners:
+            bbox_real_lines = bbox_obj(box, color=[0, 1, 0])        #Green
+            vis.add_geometry(bbox_real_lines)
 
     mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
     vis.add_geometry(mesh_frame)
@@ -68,7 +53,8 @@ def vis_PC(pc, bbox=None, bbox_real=None):
     vis.get_render_option().background_color = np.asarray([0, 0, 0])
 
     vis.run()
-    vis.destroy_window()
+    # vis.destroy_window()
+    return
 
 # Usage
 # pc = np.random.rand(1000, 3)  # Replace with your actual point cloud data
