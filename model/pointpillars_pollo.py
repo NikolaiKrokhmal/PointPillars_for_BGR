@@ -256,7 +256,7 @@ class PointPillarsPollo(nn.Module):
 
         # val and test
         self.max_det = 40
-        self.score_thr = 0.9995
+        self.score_thr = 0.99
 
     def get_predicted_bboxes_single(self, det_prob_pred, bbox_pred, anchors):
         """

@@ -62,10 +62,10 @@ def main(args):
                                                     max_momentum=0.95,
                                                     div_factor=25)  # Changed from 10
 
-    saved_logs_path = os.path.join(args.saved_path, 'summary')
+    saved_logs_path = os.path.join(args.saved_path, f'summary/{args.run_specs}')
     os.makedirs(saved_logs_path, exist_ok=True)
     writer = SummaryWriter(saved_logs_path)
-    saved_ckpt_path = os.path.join(args.saved_path, 'checkpoints')
+    saved_ckpt_path = os.path.join(args.saved_path, f'checkpoints/{args.run_specs}')
     os.makedirs(saved_ckpt_path, exist_ok=True)
 
     for epoch in range(args.max_epoch):
@@ -194,11 +194,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--nclasses', type=int, default=1)
     parser.add_argument('--init_lr', type=float, default=0.00025)
-    parser.add_argument('--max_epoch', type=int, default=60)
+    parser.add_argument('--max_epoch', type=int, default=30)
     parser.add_argument('--log_freq', type=int, default=5)
     parser.add_argument('--ckpt_freq_epoch', type=int, default=5)
     parser.add_argument('--no_cuda', action='store_true',
                         help='whether to use cuda')
+    parser.add_argument('--run_specs',type=str,  help='run specifications')
     run_args = parser.parse_args()
 
     main(run_args)
