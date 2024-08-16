@@ -32,7 +32,7 @@ def main(args):
                         split='val')
     train_dataloader = get_dataloader(dataset=train_dataset,
                                       batch_size=args.batch_size,
-                                      num_workers=args.num_workers,באלי
+                                      num_workers=args.num_workers,
                                       shuffle=True)
     val_dataloader = get_dataloader(dataset=val_dataset,
                                     batch_size=args.batch_size,
