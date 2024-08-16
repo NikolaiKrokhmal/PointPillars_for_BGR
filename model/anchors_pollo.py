@@ -131,11 +131,8 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
         anchors = batched_anchors[i]
         gt_bboxes, gt_labels = batched_gt_bboxes[i], batched_gt_labels[i]
         # what we want to get next ?
-        # 1. identify positive anchors and negative anchors  -> cls
-        # 2. identify the regression values  -> reg
-        multi_labels, multi_label_weights = [], []
-        multi_bbox_reg, multi_bbox_reg_weights = [], []
-        d1, d2, d3, d4, d5 = anchors.size()
+        # 1. identify positive anchors and negative anchors  -> detection
+        # 2. identify the regression values  -> location regression
         for j in range(n_assigners):  # multi anchors
             assigner = assigners[j]
             pos_thr, neg_thr = assigner['pos_thr'], assigner['neg_thr']
@@ -154,7 +151,7 @@ def anchor_target(batched_anchors, batched_gt_bboxes, batched_gt_labels, assigne
 
             # apply negative hard mining
             negative_two_indices = torch.where(assigned_gt_labels == -2)[0]
-            neg_hard_amount = mask_in.sum()
+            neg_hard_amount = mask_in.sum()*2
             rand_idx = torch.randperm(len(negative_two_indices), device=dist_mat.device)
             rand_idx = rand_idx[: neg_hard_amount]
 

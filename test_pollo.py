@@ -77,7 +77,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
     parser.add_argument('--ckpt', default='./pillar_logs/checkpoints/epoch_60.pth') #'./logs_backup/epoch_60_niko.pth'
-    parser.add_argument('--pc_path', default='../../Data-ApolloScape/PCD_MAP.pkl')
+    parser.add_argument('--pc_path', default='../Data-ApolloScape/PCD_MAP.pkl')
     parser.add_argument('--no_cuda', action='store_true', help='whether to use cuda')
     args = parser.parse_args()
 

@@ -219,10 +219,10 @@ class Head(nn.Module):
 class PointPillarsPollo(nn.Module):
     def __init__(self,
                  nclasses=1,
-                 voxel_size=(0.2, 0.2, 3),  #(0.2, 0.2, 3)
+                 voxel_size=(0.16, 0.16, 3),  #(0.2, 0.2, 3)
                  point_cloud_range=(-40, -40, -2, 40, 40, 1), #(0, -4.8, -2, 80, 4.8, 1)
                  max_num_points=32,
-                 max_voxels=(16000, 40000)):
+                 max_voxels=(10000, 40000)):
         super().__init__()
         self.nclasses = nclasses
         self.pillar_layer = PillarLayer(voxel_size=voxel_size,
@@ -243,7 +243,7 @@ class PointPillarsPollo(nn.Module):
 
         # anchors
         ranges = [[-40, -40, -2, 40, 40, 1]]
-        sizes = [[0.4, 0.4, 3]]
+        sizes = [[0.32, 0.32, 3]]
         rotations = [0]
         self.anchors_generator = AnchorsPollo(ranges=ranges,
                                          sizes=sizes,
@@ -255,8 +255,8 @@ class PointPillarsPollo(nn.Module):
         ]
 
         # val and test
-        self.max_det = 30 #40
-        self.score_thr = 0.999 #0.95
+        self.max_det = 40
+        self.score_thr = 0.9995
 
     def get_predicted_bboxes_single(self, det_prob_pred, bbox_pred, anchors):
         """
