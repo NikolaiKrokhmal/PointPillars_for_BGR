@@ -1,4 +1,6 @@
 import argparse
+import pickle
+
 import cv2
 import numpy as np
 import os
@@ -51,16 +53,16 @@ def main(args):
     if not os.path.exists(args.pc_path):
         raise FileNotFoundError
 
-    pickle = (shuffle_pickle(args.pc_path))
-    pickle = (read_pickle(args.pc_path))
-    # frame = pickle[next(iter(pickle))]
+    dat = (shuffle_pickle(args.pc_path))
+    dat = (read_pickle(args.pc_path))
+    # frame = dat[next(iter(dat))]
 
     scores_above_70 = []
     f1_distribution = []
     time_distribution = []
 
-    for key in tqdm(pickle.keys()):
-        frame = pickle[key]
+    for key in tqdm(dat.keys()):
+        frame = dat[key]
         pc = read_points(frame['path'])
         pc = point_range_filter(pc)
         pc_torch = torch.from_numpy(pc)
@@ -84,20 +86,25 @@ def main(args):
         if lidar_bboxes is not None:
             lidar_bboxes[:, 2] = sum(cone['location'][2] for cone in frame['cones'].values()) / len(frame['cones'])
             real_bbox = dict2numpy(frame['cones'], lidar_bboxes[0, 2:])
-            prediction, recall, f1 = F1Score(lidar_bboxes, real_bbox, next(iter(pickle)))
+            prediction, recall, f1 = F1Score(lidar_bboxes, real_bbox, next(iter(dat)))
             f1_distribution.append(f1)
             time_distribution.append(frame_time)
             if f1 > 70:
                 scores_above_70.append([key, pc, lidar_bboxes, real_bbox, prediction, recall, f1])
-                print(f"predicted cones: {len(lidar_bboxes)}, real cones: {len(real_bbox)}, frame: {next(iter(pickle))}, score median: {np.median(result_filter['scores'])}, score mean: {result_filter['scores'].mean()}")
+                print(f"predicted cones: {len(lidar_bboxes)}, real cones: {len(real_bbox)}, frame: {next(iter(dat))}, score median: {np.median(result_filter['scores'])}, score mean: {result_filter['scores'].mean()}")
                 print(f"frame time is: {frame_time}")
                 print(f"prediction: {prediction}, recall: {recall}, f1: {f1}\n")
+
+                """uncomment to see the visuals!"""
                 # vis_pc(pc, lidar_bboxes, real_bbox)
     directory = './test_logs/'
-    os.makedirs(directory)
-    with open(f'{directory}variables.pkl', 'wb') as f:
+    os.makedirs(directory, exist_ok=True)
+    with open(os.path.join(directory, 'variables.pkl'), 'wb') as f:
         pickle.dump((scores_above_70, f1_distribution, time_distribution), f)
         print("Variables saved successfully!")
+
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
@@ -105,5 +112,11 @@ if __name__ == '__main__':
     parser.add_argument('--pc_path', default='../../Data-ApolloScape/PCD_MAP.pkl')
     parser.add_argument('--no_cuda', action='store_true', help='whether to use cuda')
     args = parser.parse_args()
+
+    # directory = './test_logs/'
+    # os.makedirs(directory, exist_ok=True)
+    # with open(os.path.join(directory, 'variables.pkl'), 'wb') as f:
+    #     pickle.dump(([1],[['s']],[3.]), f)
+    #     print("Variables saved successfully!")
 
     main(args)

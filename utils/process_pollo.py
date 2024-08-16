@@ -128,7 +128,7 @@ def bbox3d2bevcorners(bboxes):
 
 
 def bbox3d2corners(bboxes):
-    '''
+    """
     bboxes: shape=(n, 7)
     return: shape=(n, 8, 3)
            ^ z   x            6 ------ 5
@@ -139,7 +139,7 @@ def bbox3d2corners(bboxes):
                             |/   o   |/
                             3 ------ 0
     x: front, y: left, z: top
-    '''
+    """
     centers, dims, angles = bboxes[:, :3], bboxes[:, 3:6], bboxes[:, 6]
 
     # 1.generate bbox corner coordinates, clockwise from minimal point

@@ -1,6 +1,3 @@
-import numpy as np
-
-
 def F1Score(predict, real, frame_num, visual=False):
     # each input is dictionary, where the key is frame num, and value is:
     # array of arrays: [x, y, z, class,
