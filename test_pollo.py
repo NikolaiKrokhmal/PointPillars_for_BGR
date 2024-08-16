@@ -55,7 +55,9 @@ def main(args):
     pickle = (read_pickle(args.pc_path))
     # frame = pickle[next(iter(pickle))]
 
-    scores = []
+    scores_above_70 = []
+    f1_distribution = []
+    time_distribution = []
 
     for key in tqdm(pickle.keys()):
         frame = pickle[key]
@@ -74,19 +76,28 @@ def main(args):
             frame_time = end_time - start_time
         lidar_bboxes = result_filter['lidar_bboxes']
         # if lidar_bboxes is None:
-        #     scores.append(
+        #     scores_above_70.append(
         #         [key, pc, np.zeros(1), dict2numpy(frame['cones'], np.array([-0.5, 0.4, 0.4, 3., 0.])), 0, 0, 0])
+        if lidar_bboxes is None:
+            f1_distribution.append(0)
+            time_distribution.append(frame_time)
         if lidar_bboxes is not None:
             lidar_bboxes[:, 2] = sum(cone['location'][2] for cone in frame['cones'].values()) / len(frame['cones'])
             real_bbox = dict2numpy(frame['cones'], lidar_bboxes[0, 2:])
             prediction, recall, f1 = F1Score(lidar_bboxes, real_bbox, next(iter(pickle)))
+            f1_distribution.append(f1)
+            time_distribution.append(frame_time)
             if f1 > 70:
-                scores.append([key, frame_time, pc, lidar_bboxes, real_bbox, prediction, recall, f1])
+                scores_above_70.append([key, pc, lidar_bboxes, real_bbox, prediction, recall, f1])
                 print(f"predicted cones: {len(lidar_bboxes)}, real cones: {len(real_bbox)}, frame: {next(iter(pickle))}, score median: {np.median(result_filter['scores'])}, score mean: {result_filter['scores'].mean()}")
                 print(f"frame time is: {frame_time}")
                 print(f"prediction: {prediction}, recall: {recall}, f1: {f1}\n")
-                vis_pc(pc, lidar_bboxes, real_bbox)
-
+                # vis_pc(pc, lidar_bboxes, real_bbox)
+    directory = './test_logs/'
+    os.makedirs(directory)
+    with open(f'{directory}variables.pkl', 'wb') as f:
+        pickle.dump((scores_above_70, f1_distribution, time_distribution), f)
+        print("Variables saved successfully!")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Configuration Parameters')
